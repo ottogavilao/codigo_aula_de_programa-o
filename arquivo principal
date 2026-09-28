@@ -1,0 +1,249 @@
+import random
+import math
+import time
+import tkinter as tk
+from dataclasses import dataclass
+
+
+WIDTH = 1180
+HEIGHT = 700
+BOARD_X = 250
+BOARD_Y = 145
+CELL_W = 100
+CELL_H = 88
+ROWS = 5
+COLS = 9
+BOARD_RIGHT = BOARD_X + COLS * CELL_W
+BOARD_BOTTOM = BOARD_Y + ROWS * CELL_H
+
+PLANTS = {
+	"atiradora": {"name": "Atiradora", "cost": 50, "color": "#42c96b", "hp": 100},
+	"girassol": {"name": "Girassol", "cost": 25, "color": "#ffd447", "hp": 80},
+	"bloqueio": {"name": "Bloqueio", "cost": 25, "color": "#b77b4b", "hp": 360},
+}
+
+
+@dataclass
+class Plant:
+	kind: str
+	row: int
+	col: int
+	hp: float
+	timer: float = 0
+
+
+@dataclass
+class Zombie:
+	row: int
+	x: float
+	hp: float
+	speed: float
+	damage_timer: float = 0
+
+
+@dataclass
+class Pea:
+	row: int
+	x: float
+
+
+class JardimInfinito:
+	def __init__(self, root):
+		self.root = root
+		self.root.title("Jardim Infinito")
+		self.root.resizable(False, False)
+		self.canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT, bg="#d9edc1", highlightthickness=0)
+		self.canvas.pack()
+		self.canvas.bind("<Button-1>", self.click)
+		self.root.bind("r", self.reset)
+		self.root.bind("R", self.reset)
+		self.reset()
+		self.tick()
+
+	def reset(self, _event=None):
+		self.sun = 50
+		self.plants = []
+		self.zombies = []
+		self.peas = []
+		self.selected = "atiradora"
+		self.elapsed = 0
+		self.spawn_timer = 6
+		self.sun_timer = 5
+		self.last_tick = time.monotonic()
+		self.game_over = False
+		self.draw()
+
+	def click(self, event):
+		if self.game_over:
+			self.reset()
+			return
+		if 24 <= event.x <= 220:
+			for index, kind in enumerate(PLANTS):
+				top = 155 + index * 100
+				if top <= event.y <= top + 80:
+					self.selected = kind
+					self.draw()
+					return
+		if BOARD_X <= event.x < BOARD_RIGHT and BOARD_Y <= event.y < BOARD_BOTTOM:
+			col = int((event.x - BOARD_X) // CELL_W)
+			row = int((event.y - BOARD_Y) // CELL_H)
+			kind = self.selected
+			occupied = any(p.row == row and p.col == col for p in self.plants)
+			if not occupied and self.sun >= PLANTS[kind]["cost"]:
+				self.sun -= PLANTS[kind]["cost"]
+				self.plants.append(Plant(kind, row, col, PLANTS[kind]["hp"]))
+				self.draw()
+
+	def tick(self):
+		now = time.monotonic()
+		dt = min(now - self.last_tick, 0.06)
+		self.last_tick = now
+		if not self.game_over:
+			self.update(dt)
+		self.draw()
+		self.root.after(35, self.tick)
+
+	def update(self, dt):
+		self.elapsed += dt
+		self.spawn_timer -= dt
+		self.sun_timer -= dt
+		spawn_gap = max(1.5, 6 - self.elapsed / 80)
+		if self.spawn_timer <= 0:
+			difficulty = self.elapsed / 60
+			self.zombies.append(Zombie(random.randrange(ROWS), BOARD_RIGHT + 25,
+									   65 + difficulty * 35,
+									   13 + min(self.elapsed / 70, 10)))
+			self.spawn_timer = random.uniform(spawn_gap * 0.65, spawn_gap * 1.3)
+		if self.sun_timer <= 0:
+			self.sun += 25 * sum(plant.kind == "girassol" for plant in self.plants)
+			self.sun_timer = 7
+
+		for plant in self.plants:
+			if plant.kind == "atiradora":
+				plant.timer -= dt
+				if plant.timer <= 0 and any(z.row == plant.row and
+											 z.x > BOARD_X + plant.col * CELL_W for z in self.zombies):
+					self.peas.append(Pea(plant.row, BOARD_X + plant.col * CELL_W + 65))
+					plant.timer = 1.15
+		for pea in self.peas[:]:
+			pea.x += 300 * dt
+			target = next((z for z in self.zombies if z.row == pea.row and abs(z.x - pea.x) < 20), None)
+			if target:
+				target.hp -= 25
+				self.peas.remove(pea)
+				if target.hp <= 0:
+					self.zombies.remove(target)
+					self.sun += 20
+			elif pea.x > BOARD_RIGHT:
+				self.peas.remove(pea)
+
+		for zombie in self.zombies[:]:
+			target = next((p for p in self.plants if p.row == zombie.row and
+						   abs(zombie.x - (BOARD_X + p.col * CELL_W + 50)) < 36), None)
+			if target:
+				zombie.damage_timer -= dt
+				if zombie.damage_timer <= 0:
+					target.hp -= 22
+					zombie.damage_timer = 0.65
+					if target.hp <= 0:
+						self.plants.remove(target)
+			else:
+				zombie.x -= zombie.speed * dt
+			if zombie.x < BOARD_X - 8:
+				self.game_over = True
+
+	def draw(self):
+		c = self.canvas
+		c.delete("all")
+		c.create_rectangle(0, 0, WIDTH, 100, fill="#243b35", outline="")
+		c.create_text(32, 34, text="JARDIM INFINITO", anchor="w", fill="#f4f1dc",
+					  font=("Segoe UI", 24, "bold"))
+		c.create_text(34, 72, text="DEFENDA AS CINCO FAIXAS", anchor="w", fill="#a8c7ae",
+					  font=("Segoe UI", 10, "bold"))
+		c.create_oval(965, 25, 1005, 65, fill="#ffd447", outline="#fff2a1", width=2)
+		c.create_text(1020, 45, text=str(self.sun), anchor="w", fill="white",
+					  font=("Segoe UI", 22, "bold"))
+		c.create_text(1120, 46, text="SOIS", anchor="w", fill="#c4d7c4", font=("Segoe UI", 10, "bold"))
+
+		c.create_text(26, 125, text="PLANTAS", anchor="w", fill="#243b35", font=("Segoe UI", 13, "bold"))
+		for index, (kind, data) in enumerate(PLANTS.items()):
+			top = 155 + index * 100
+			active = kind == self.selected
+			c.create_rectangle(24, top, 220, top + 80, fill="#f7f4e8" if active else "#e8e8d4",
+							   outline="#287b55" if active else "#bdc9ae", width=3 if active else 1)
+			self.draw_plant(65, top + 40, kind, 0.65)
+			c.create_text(96, top + 27, text=data["name"], anchor="w", fill="#243b35",
+						  font=("Segoe UI", 12, "bold"))
+			c.create_text(96, top + 53, text=f'{data["cost"]} sois', anchor="w", fill="#68745b",
+						  font=("Segoe UI", 10))
+		c.create_text(26, 478, text="COMO JOGAR", anchor="w", fill="#243b35", font=("Segoe UI", 12, "bold"))
+		c.create_text(26, 504, text="Escolha uma planta\ne clique no gramado.\nGirassóis geram 25\nsois a cada 7 s.\nZumbi vale 20 sois.",
+					  anchor="nw", fill="#4d614d", font=("Segoe UI", 10))
+
+		for row in range(ROWS):
+			for col in range(COLS):
+				x = BOARD_X + col * CELL_W
+				y = BOARD_Y + row * CELL_H
+				color = "#9bcf78" if (row + col) % 2 == 0 else "#8fc36e"
+				c.create_rectangle(x, y, x + CELL_W, y + CELL_H, fill=color, outline="#78ad61", width=2)
+		for plant in self.plants:
+			self.draw_plant(BOARD_X + plant.col * CELL_W + 50,
+							BOARD_Y + plant.row * CELL_H + 44, plant.kind)
+		for pea in self.peas:
+			c.create_oval(pea.x - 8, BOARD_Y + pea.row * CELL_H + 36,
+						  pea.x + 8, BOARD_Y + pea.row * CELL_H + 52,
+						  fill="#a8f268", outline="#447b37", width=2)
+		for zombie in self.zombies:
+			self.draw_zombie(zombie)
+		minutes = int(self.elapsed // 60)
+		seconds = int(self.elapsed % 60)
+		c.create_text(BOARD_X, 602, text=f"TEMPO  {minutes:02}:{seconds:02}", anchor="w",
+					  fill="#243b35", font=("Segoe UI", 12, "bold"))
+		c.create_text(BOARD_RIGHT, 602, text=f"ZUMBIS  {len(self.zombies)}", anchor="e",
+					  fill="#243b35", font=("Segoe UI", 12, "bold"))
+		c.create_text(BOARD_X, 642, text="A invasão não tem fim. Quanto mais tempo você resistir, mais fortes ficam os zumbis.",
+					  anchor="w", fill="#50654b", font=("Segoe UI", 10))
+		if self.game_over:
+			c.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#14221c", stipple="gray50", outline="")
+			c.create_text(WIDTH / 2, 290, text="O JARDIM CAIU", fill="#fff0df", font=("Segoe UI", 34, "bold"))
+			c.create_text(WIDTH / 2, 350, text=f"Você resistiu por {minutes:02}:{seconds:02}",
+						  fill="#c6ddbd", font=("Segoe UI", 16))
+			c.create_text(WIDTH / 2, 405, text="Clique para jogar de novo", fill="#ffd447",
+						  font=("Segoe UI", 13, "bold"))
+
+	def draw_plant(self, x, y, kind, scale=1):
+		c = self.canvas
+		if kind == "atiradora":
+			c.create_oval(x - 22 * scale, y - 22 * scale, x + 22 * scale, y + 22 * scale,
+						  fill="#42c96b", outline="#216c43", width=2)
+			c.create_oval(x + 7 * scale, y - 7 * scale, x + 31 * scale, y + 7 * scale,
+						  fill="#319d52", outline="#216c43", width=2)
+			c.create_oval(x - 5 * scale, y - 5 * scale, x + 3 * scale, y + 3 * scale, fill="#173e2c", outline="")
+		elif kind == "girassol":
+			for angle in range(0, 360, 45):
+				px = x + math.cos(math.radians(angle)) * 17 * scale
+				py = y + math.sin(math.radians(angle)) * 17 * scale
+				c.create_oval(px - 9 * scale, py - 9 * scale, px + 9 * scale, py + 9 * scale,
+							  fill="#ffb52e", outline="#bd7724")
+			c.create_oval(x - 12 * scale, y - 12 * scale, x + 12 * scale, y + 12 * scale,
+						  fill="#754a32", outline="#513321")
+		else:
+			c.create_rectangle(x - 23 * scale, y - 23 * scale, x + 23 * scale, y + 23 * scale,
+							   fill="#b77b4b", outline="#74472d", width=3)
+
+	def draw_zombie(self, zombie):
+		c = self.canvas
+		y = BOARD_Y + zombie.row * CELL_H + 43
+		c.create_rectangle(zombie.x - 18, y - 3, zombie.x + 18, y + 29,
+						   fill="#596d58", outline="#314637", width=2)
+		c.create_oval(zombie.x - 17, y - 29, zombie.x + 17, y + 5,
+					  fill="#91ad78", outline="#405d48", width=2)
+		c.create_oval(zombie.x - 9, y - 16, zombie.x - 5, y - 12, fill="#e4483e", outline="")
+		c.create_oval(zombie.x + 5, y - 16, zombie.x + 9, y - 12, fill="#e4483e", outline="")
+		c.create_line(zombie.x - 8, y - 5, zombie.x + 8, y - 5, fill="#314637", width=2)
+
+
+if __name__ == "__main__":
+	window = tk.Tk()
+	JardimInfinito(window)
+	window.mainloop()
