@@ -1,249 +1,183 @@
-import random
-import math
-import time
-import tkinter as tk
-from dataclasses import dataclass
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horta Maldita — Boss Rush</title>
+<style>
+  :root { color-scheme: dark; --ink:#f7ecd5; --gold:#ffd36c; --red:#ff6b5f; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; color:var(--ink); background:radial-gradient(ellipse at 50% 15%,#34473e 0,#19251f 48%,#101613 100%); font-family:Georgia,"Times New Roman",serif; }
+  .frame { width:min(100%,1000px); }
+  header { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:0 2px 12px; }
+  h1 { margin:0; font-size:clamp(23px,4vw,36px); letter-spacing:.08em; text-transform:uppercase; text-shadow:3px 3px 0 #5c3027; }
+  .subtitle { margin:5px 0 0; color:#c8c0a9; font:12px/1.3 system-ui,sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+  .badge { color:#e7d8b6; border:1px solid #6d775c; padding:7px 10px; font:11px system-ui,sans-serif; letter-spacing:.12em; white-space:nowrap; }
+  .screen { position:relative; border:3px solid #d6bd82; box-shadow:0 0 0 5px #27352d,0 20px 70px #0009; background:#9db28a; }
+  canvas { display:block; width:100%; height:auto; image-rendering:pixelated; }
+  .overlay { position:absolute; inset:0; display:grid; place-items:center; background:#101711b8; text-align:center; padding:24px; }
+  .panel { max-width:540px; padding:22px 28px; background:#18231eeF; border:2px solid #d6bd82; box-shadow:7px 7px 0 #101510; }
+  .panel h2 { margin:0 0 8px; color:var(--gold); font-size:clamp(24px,4vw,38px); text-transform:uppercase; letter-spacing:.08em; }
+  .panel p { color:#e4ddc9; font:14px/1.6 system-ui,sans-serif; margin:8px 0 16px; }
+  button { border:0; padding:12px 23px; color:#18231e; background:var(--gold); font:bold 13px system-ui,sans-serif; letter-spacing:.13em; text-transform:uppercase; cursor:pointer; box-shadow:4px 4px 0 #8e5435; }
+  button:hover { transform:translate(1px,1px); box-shadow:3px 3px 0 #8e5435; }
+  .controls { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; padding:12px 5px 0; color:#d5d0c0; font:12px system-ui,sans-serif; }
+  kbd { color:#fff0c8; background:#29372f; border:1px solid #63715e; padding:2px 6px; border-radius:3px; font:11px ui-monospace,monospace; }
+  @media(max-width:600px){ body{padding:12px} header{align-items:start; flex-direction:column}.badge{display:none}.controls{font-size:10px} }
+</style>
+</head>
+<body>
+<main class="frame">
+  <header><div><h1>Horta Maldita</h1><p class="subtitle">Boss Rush · Jardim das Raízes · Protótipo 01</p></div><div class="badge">CHEFE 01 — O GUARDIÃO</div></header>
+  <div class="screen">
+    <canvas id="game" width="960" height="540" aria-label="Arena do jogo Horta Maldita"></canvas>
+    <div class="overlay" id="overlay"><div class="panel"><h2 id="overlayTitle">O Guardião da Horta</h2><p id="overlayText">Uma raiz antiga protege o jardim. Atravesse as três investidas e acerte o guardião até ele desistir. Os desenhos são formas temporárias: depois trocamos por seus sprites.</p><button id="startButton">Começar luta</button></div></div>
+  </div>
+  <div class="controls"><span><kbd>A</kbd> <kbd>D</kbd> mover</span><span><kbd>ESPAÇO</kbd> pular</span><span><kbd>J</kbd> atirar</span><span><kbd>SHIFT</kbd> esquiva</span><span><kbd>R</kbd> reiniciar</span></div>
+</main>
+<script>
+(() => {
+  const canvas = document.querySelector('#game');
+  const ctx = canvas.getContext('2d');
+  const heroSprite = new Image(); heroSprite.src = 'assets/personagem.svg';
+  const bulletSprite = new Image(); bulletSprite.src = 'assets/bala.svg';
+  const overlay = document.querySelector('#overlay');
+  const overlayTitle = document.querySelector('#overlayTitle');
+  const overlayText = document.querySelector('#overlayText');
+  const startButton = document.querySelector('#startButton');
+  const W = canvas.width, H = canvas.height, floorY = 455;
+  const keys = new Set();
+  let player, boss, shots, hazards, particles, running = false, won = false, last = 0, elapsed = 0;
+  let phase = 1, attackClock = 0, phaseBanner = 0, hitFlash = 0;
+  const rand = (a,b) => a + Math.random()*(b-a);
+  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 
+  function reset() {
+    player = {x:150,y:floorY-70,w:42,h:70,vx:0,vy:0,hp:5,face:1,invuln:0,dash:0,shootCd:0,throwTimer:0};
+    boss = {x:700,y:floorY-122,w:104,h:122,hp:100,maxHp:100,anim:0};
+    shots=[]; hazards=[]; particles=[]; phase=1; attackClock=0; elapsed=0; phaseBanner=2.2; hitFlash=0; won=false;
+  }
+  reset();
+  function start() { reset(); overlay.style.display='none'; running=true; last=performance.now(); requestAnimationFrame(loop); }
+  startButton.addEventListener('click', start);
+  window.addEventListener('keydown', e => {
+    if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code)) e.preventDefault();
+    keys.add(e.code);
+    if(e.code==='KeyR' && !running) start();
+    if(e.code==='Space' && running && player.y+player.h>=floorY-1) player.vy=-570;
+    if((e.code==='ShiftLeft'||e.code==='ShiftRight') && running && player.dash<=0){player.dash=.19;player.invuln=.42;player.vx=player.face*670;}
+  });
+  window.addEventListener('keyup', e => keys.delete(e.code));
 
-WIDTH = 1180
-HEIGHT = 700
-BOARD_X = 250
-BOARD_Y = 145
-CELL_W = 100
-CELL_H = 88
-ROWS = 5
-COLS = 9
-BOARD_RIGHT = BOARD_X + COLS * CELL_W
-BOARD_BOTTOM = BOARD_Y + ROWS * CELL_H
-
-PLANTS = {
-	"atiradora": {"name": "Atiradora", "cost": 50, "color": "#42c96b", "hp": 100},
-	"girassol": {"name": "Girassol", "cost": 25, "color": "#ffd447", "hp": 80},
-	"bloqueio": {"name": "Bloqueio", "cost": 25, "color": "#b77b4b", "hp": 360},
-}
-
-
-@dataclass
-class Plant:
-	kind: str
-	row: int
-	col: int
-	hp: float
-	timer: float = 0
-
-
-@dataclass
-class Zombie:
-	row: int
-	x: float
-	hp: float
-	speed: float
-	damage_timer: float = 0
-
-
-@dataclass
-class Pea:
-	row: int
-	x: float
-
-
-class JardimInfinito:
-	def __init__(self, root):
-		self.root = root
-		self.root.title("Jardim Infinito")
-		self.root.resizable(False, False)
-		self.canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT, bg="#d9edc1", highlightthickness=0)
-		self.canvas.pack()
-		self.canvas.bind("<Button-1>", self.click)
-		self.root.bind("r", self.reset)
-		self.root.bind("R", self.reset)
-		self.reset()
-		self.tick()
-
-	def reset(self, _event=None):
-		self.sun = 50
-		self.plants = []
-		self.zombies = []
-		self.peas = []
-		self.selected = "atiradora"
-		self.elapsed = 0
-		self.spawn_timer = 6
-		self.sun_timer = 5
-		self.last_tick = time.monotonic()
-		self.game_over = False
-		self.draw()
-
-	def click(self, event):
-		if self.game_over:
-			self.reset()
-			return
-		if 24 <= event.x <= 220:
-			for index, kind in enumerate(PLANTS):
-				top = 155 + index * 100
-				if top <= event.y <= top + 80:
-					self.selected = kind
-					self.draw()
-					return
-		if BOARD_X <= event.x < BOARD_RIGHT and BOARD_Y <= event.y < BOARD_BOTTOM:
-			col = int((event.x - BOARD_X) // CELL_W)
-			row = int((event.y - BOARD_Y) // CELL_H)
-			kind = self.selected
-			occupied = any(p.row == row and p.col == col for p in self.plants)
-			if not occupied and self.sun >= PLANTS[kind]["cost"]:
-				self.sun -= PLANTS[kind]["cost"]
-				self.plants.append(Plant(kind, row, col, PLANTS[kind]["hp"]))
-				self.draw()
-
-	def tick(self):
-		now = time.monotonic()
-		dt = min(now - self.last_tick, 0.06)
-		self.last_tick = now
-		if not self.game_over:
-			self.update(dt)
-		self.draw()
-		self.root.after(35, self.tick)
-
-	def update(self, dt):
-		self.elapsed += dt
-		self.spawn_timer -= dt
-		self.sun_timer -= dt
-		spawn_gap = max(1.5, 6 - self.elapsed / 80)
-		if self.spawn_timer <= 0:
-			difficulty = self.elapsed / 60
-			self.zombies.append(Zombie(random.randrange(ROWS), BOARD_RIGHT + 25,
-									   65 + difficulty * 35,
-									   13 + min(self.elapsed / 70, 10)))
-			self.spawn_timer = random.uniform(spawn_gap * 0.65, spawn_gap * 1.3)
-		if self.sun_timer <= 0:
-			self.sun += 25 * sum(plant.kind == "girassol" for plant in self.plants)
-			self.sun_timer = 7
-
-		for plant in self.plants:
-			if plant.kind == "atiradora":
-				plant.timer -= dt
-				if plant.timer <= 0 and any(z.row == plant.row and
-											 z.x > BOARD_X + plant.col * CELL_W for z in self.zombies):
-					self.peas.append(Pea(plant.row, BOARD_X + plant.col * CELL_W + 65))
-					plant.timer = 1.15
-		for pea in self.peas[:]:
-			pea.x += 300 * dt
-			target = next((z for z in self.zombies if z.row == pea.row and abs(z.x - pea.x) < 20), None)
-			if target:
-				target.hp -= 25
-				self.peas.remove(pea)
-				if target.hp <= 0:
-					self.zombies.remove(target)
-					self.sun += 20
-			elif pea.x > BOARD_RIGHT:
-				self.peas.remove(pea)
-
-		for zombie in self.zombies[:]:
-			target = next((p for p in self.plants if p.row == zombie.row and
-						   abs(zombie.x - (BOARD_X + p.col * CELL_W + 50)) < 36), None)
-			if target:
-				zombie.damage_timer -= dt
-				if zombie.damage_timer <= 0:
-					target.hp -= 22
-					zombie.damage_timer = 0.65
-					if target.hp <= 0:
-						self.plants.remove(target)
-			else:
-				zombie.x -= zombie.speed * dt
-			if zombie.x < BOARD_X - 8:
-				self.game_over = True
-
-	def draw(self):
-		c = self.canvas
-		c.delete("all")
-		c.create_rectangle(0, 0, WIDTH, 100, fill="#243b35", outline="")
-		c.create_text(32, 34, text="JARDIM INFINITO", anchor="w", fill="#f4f1dc",
-					  font=("Segoe UI", 24, "bold"))
-		c.create_text(34, 72, text="DEFENDA AS CINCO FAIXAS", anchor="w", fill="#a8c7ae",
-					  font=("Segoe UI", 10, "bold"))
-		c.create_oval(965, 25, 1005, 65, fill="#ffd447", outline="#fff2a1", width=2)
-		c.create_text(1020, 45, text=str(self.sun), anchor="w", fill="white",
-					  font=("Segoe UI", 22, "bold"))
-		c.create_text(1120, 46, text="SOIS", anchor="w", fill="#c4d7c4", font=("Segoe UI", 10, "bold"))
-
-		c.create_text(26, 125, text="PLANTAS", anchor="w", fill="#243b35", font=("Segoe UI", 13, "bold"))
-		for index, (kind, data) in enumerate(PLANTS.items()):
-			top = 155 + index * 100
-			active = kind == self.selected
-			c.create_rectangle(24, top, 220, top + 80, fill="#f7f4e8" if active else "#e8e8d4",
-							   outline="#287b55" if active else "#bdc9ae", width=3 if active else 1)
-			self.draw_plant(65, top + 40, kind, 0.65)
-			c.create_text(96, top + 27, text=data["name"], anchor="w", fill="#243b35",
-						  font=("Segoe UI", 12, "bold"))
-			c.create_text(96, top + 53, text=f'{data["cost"]} sois', anchor="w", fill="#68745b",
-						  font=("Segoe UI", 10))
-		c.create_text(26, 478, text="COMO JOGAR", anchor="w", fill="#243b35", font=("Segoe UI", 12, "bold"))
-		c.create_text(26, 504, text="Escolha uma planta\ne clique no gramado.\nGirassóis geram 25\nsois a cada 7 s.\nZumbi vale 20 sois.",
-					  anchor="nw", fill="#4d614d", font=("Segoe UI", 10))
-
-		for row in range(ROWS):
-			for col in range(COLS):
-				x = BOARD_X + col * CELL_W
-				y = BOARD_Y + row * CELL_H
-				color = "#9bcf78" if (row + col) % 2 == 0 else "#8fc36e"
-				c.create_rectangle(x, y, x + CELL_W, y + CELL_H, fill=color, outline="#78ad61", width=2)
-		for plant in self.plants:
-			self.draw_plant(BOARD_X + plant.col * CELL_W + 50,
-							BOARD_Y + plant.row * CELL_H + 44, plant.kind)
-		for pea in self.peas:
-			c.create_oval(pea.x - 8, BOARD_Y + pea.row * CELL_H + 36,
-						  pea.x + 8, BOARD_Y + pea.row * CELL_H + 52,
-						  fill="#a8f268", outline="#447b37", width=2)
-		for zombie in self.zombies:
-			self.draw_zombie(zombie)
-		minutes = int(self.elapsed // 60)
-		seconds = int(self.elapsed % 60)
-		c.create_text(BOARD_X, 602, text=f"TEMPO  {minutes:02}:{seconds:02}", anchor="w",
-					  fill="#243b35", font=("Segoe UI", 12, "bold"))
-		c.create_text(BOARD_RIGHT, 602, text=f"ZUMBIS  {len(self.zombies)}", anchor="e",
-					  fill="#243b35", font=("Segoe UI", 12, "bold"))
-		c.create_text(BOARD_X, 642, text="A invasão não tem fim. Quanto mais tempo você resistir, mais fortes ficam os zumbis.",
-					  anchor="w", fill="#50654b", font=("Segoe UI", 10))
-		if self.game_over:
-			c.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#14221c", stipple="gray50", outline="")
-			c.create_text(WIDTH / 2, 290, text="O JARDIM CAIU", fill="#fff0df", font=("Segoe UI", 34, "bold"))
-			c.create_text(WIDTH / 2, 350, text=f"Você resistiu por {minutes:02}:{seconds:02}",
-						  fill="#c6ddbd", font=("Segoe UI", 16))
-			c.create_text(WIDTH / 2, 405, text="Clique para jogar de novo", fill="#ffd447",
-						  font=("Segoe UI", 13, "bold"))
-
-	def draw_plant(self, x, y, kind, scale=1):
-		c = self.canvas
-		if kind == "atiradora":
-			c.create_oval(x - 22 * scale, y - 22 * scale, x + 22 * scale, y + 22 * scale,
-						  fill="#42c96b", outline="#216c43", width=2)
-			c.create_oval(x + 7 * scale, y - 7 * scale, x + 31 * scale, y + 7 * scale,
-						  fill="#319d52", outline="#216c43", width=2)
-			c.create_oval(x - 5 * scale, y - 5 * scale, x + 3 * scale, y + 3 * scale, fill="#173e2c", outline="")
-		elif kind == "girassol":
-			for angle in range(0, 360, 45):
-				px = x + math.cos(math.radians(angle)) * 17 * scale
-				py = y + math.sin(math.radians(angle)) * 17 * scale
-				c.create_oval(px - 9 * scale, py - 9 * scale, px + 9 * scale, py + 9 * scale,
-							  fill="#ffb52e", outline="#bd7724")
-			c.create_oval(x - 12 * scale, y - 12 * scale, x + 12 * scale, y + 12 * scale,
-						  fill="#754a32", outline="#513321")
-		else:
-			c.create_rectangle(x - 23 * scale, y - 23 * scale, x + 23 * scale, y + 23 * scale,
-							   fill="#b77b4b", outline="#74472d", width=3)
-
-	def draw_zombie(self, zombie):
-		c = self.canvas
-		y = BOARD_Y + zombie.row * CELL_H + 43
-		c.create_rectangle(zombie.x - 18, y - 3, zombie.x + 18, y + 29,
-						   fill="#596d58", outline="#314637", width=2)
-		c.create_oval(zombie.x - 17, y - 29, zombie.x + 17, y + 5,
-					  fill="#91ad78", outline="#405d48", width=2)
-		c.create_oval(zombie.x - 9, y - 16, zombie.x - 5, y - 12, fill="#e4483e", outline="")
-		c.create_oval(zombie.x + 5, y - 16, zombie.x + 9, y - 12, fill="#e4483e", outline="")
-		c.create_line(zombie.x - 8, y - 5, zombie.x + 8, y - 5, fill="#314637", width=2)
-
-
-if __name__ == "__main__":
-	window = tk.Tk()
-	JardimInfinito(window)
-	window.mainloop()
+  function spawn(kind,x,y,options={}) { hazards.push({kind,x,y,r:options.r||18,vx:options.vx||0,vy:options.vy||0,life:options.life||8, homing:!!options.homing, age:0, angle:0}); }
+  function attacks(dt) {
+    attackClock-=dt;
+    if(phase===1 && attackClock<=0){
+      const fromLeft=Math.random()<.5;
+      spawn('root',fromLeft?-25:W+25,floorY-16,{r:22,vx:fromLeft?rand(200,280):-rand(200,280),life:7});
+      if(Math.random()<.28) spawn('root',fromLeft?-25:W+25,floorY-16,{r:14,vx:fromLeft?rand(290,350):-rand(290,350),life:6});
+      attackClock=rand(1.35,2.1);
+    } else if(phase===2 && attackClock<=0) {
+      const x=rand(90,W-90); spawn('seed',x,-25,{r:16,vy:rand(210,300),life:5});
+      if(Math.random()<.52) spawn('seed',rand(90,W-90),-25,{r:12,vy:rand(260,340),life:5});
+      attackClock=rand(.65,1.05);
+    } else if(phase===3 && attackClock<=0) {
+      spawn('spore',boss.x+boss.w/2,boss.y+45,{r:13,vx:rand(-60,60),vy:rand(-60,60),homing:true,life:7});
+      if(Math.random()<.55) spawn('spore',boss.x+boss.w/2,boss.y+60,{r:11,vx:rand(-80,80),vy:rand(-55,55),homing:true,life:7});
+      attackClock=rand(.9,1.35);
+    }
+  }
+  function update(dt) {
+    elapsed+=dt; phaseBanner=Math.max(0,phaseBanner-dt); hitFlash=Math.max(0,hitFlash-dt);
+    const oldPhase=phase;
+    phase=boss.hp>66?1:boss.hp>33?2:3;
+    if(phase!==oldPhase){phaseBanner=2.3;attackClock=.65;}
+    boss.anim+=dt;
+    const move=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
+    if(player.dash>0) player.dash-=dt; else player.vx=move*250;
+    if(move && player.dash<=0) player.face=move;
+    if(keys.has('KeyJ') && player.shootCd<=0){player.throwTimer=.13;shots.push({x:player.x+player.w/2+player.face*31,y:player.y+player.h*.43,vx:player.face*590,life:1.2});player.shootCd=.2;}
+    player.throwTimer=Math.max(0,player.throwTimer-dt);
+    player.shootCd=Math.max(0,player.shootCd-dt); player.invuln=Math.max(0,player.invuln-dt);
+    player.x=clamp(player.x+player.vx*dt,18,W-player.w-18);
+    player.vy+=1450*dt; player.y+=player.vy*dt;
+    if(player.y+player.h>floorY){player.y=floorY-player.h;player.vy=0;}
+    attacks(dt);
+    for(const s of shots){s.x+=s.vx*dt;s.life-=dt;if(s.x>boss.x-12&&s.x<boss.x+boss.w+12&&s.y>boss.y&&s.y<boss.y+boss.h){s.life=0;boss.hp=Math.max(0,boss.hp-1.6);hitFlash=.08;for(let i=0;i<3;i++)particles.push({x:s.x,y:s.y,vx:rand(-80,80),vy:rand(-100,30),life:.25,color:'#ffe28a'});}}
+    shots=shots.filter(s=>s.life>0&&s.x>-20&&s.x<W+20);
+    for(const h of hazards){h.age+=dt;h.life-=dt;
+      if(h.homing){const dx=player.x+player.w/2-h.x,dy=player.y+player.h/2-h.y,len=Math.max(1,Math.hypot(dx,dy));h.vx+=(dx/len*210-h.vx)*dt*1.35;h.vy+=(dy/len*210-h.vy)*dt*1.35;}
+      h.x+=h.vx*dt;h.y+=h.vy*dt;
+      if(h.kind==='root'&&h.x>W+50)h.life=0;if(h.kind==='root'&&h.x<-50)h.life=0;
+      if(h.kind==='seed'&&h.y+h.r>=floorY){h.y=floorY-h.r;h.vy=0;h.life=Math.min(h.life,1.1);}
+      if(player.invuln<=0&&Math.abs(h.x-(player.x+player.w/2))<h.r+player.w*.37&&Math.abs(h.y-(player.y+player.h/2))<h.r+player.h*.36){
+        player.hp--;player.invuln=1.1;player.vx=(player.x+player.w/2<h.x?-1:1)*300;player.vy=-260;h.life=0;
+        if(player.hp<=0) finish(false);
+      }
+    }
+    hazards=hazards.filter(h=>h.life>0);
+    for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}
+    particles=particles.filter(p=>p.life>0);
+    if(boss.hp<=0) finish(true);
+  }
+  function finish(victory){ if(!running)return; running=false;won=victory;overlay.style.display='grid';overlayTitle.textContent=victory?'Jardim protegido!':'A horta venceu';overlayText.textContent=victory?'Você derrotou o Guardião. O próximo boss pode entrar no mapa quando seus sprites estiverem prontos.':'As raízes te pegaram. Respire fundo e tente outra vez.';startButton.textContent=victory?'Jogar de novo':'Tentar de novo'; }
+  function rounded(x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+  function drawBackground(){
+    const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#a9c39a');sky.addColorStop(.7,'#d7c995');sky.addColorStop(1,'#b5a573');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#849d77';ctx.beginPath();ctx.moveTo(0,300);ctx.quadraticCurveTo(180,190,360,300);ctx.quadraticCurveTo(550,210,740,300);ctx.quadraticCurveTo(850,220,960,285);ctx.lineTo(960,455);ctx.lineTo(0,455);ctx.fill();
+    // Ruined greenhouse silhouette
+    ctx.strokeStyle='#657960';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(90,278);ctx.lineTo(90,158);ctx.lineTo(195,95);ctx.lineTo(300,158);ctx.lineTo(300,278);ctx.moveTo(90,158);ctx.lineTo(300,158);ctx.moveTo(195,98);ctx.lineTo(195,278);ctx.stroke();
+    ctx.globalAlpha=.35;for(let i=0;i<16;i++){const x=(i*89+25)%W;ctx.fillStyle=i%2?'#f7e5a0':'#eff3c1';ctx.beginPath();ctx.ellipse(x,100+(i*53)%260,2,2,0,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
+    ctx.fillStyle='#594833';ctx.fillRect(0,floorY,W,H-floorY);ctx.fillStyle='#7d6843';ctx.fillRect(0,floorY,W,8);
+    for(let i=0;i<24;i++){let x=i*43+(i%2)*12;ctx.fillStyle=i%3?'#6c5739':'#96794a';ctx.fillRect(x,floorY+17,28,3);}
+    // small edge shrubs / arena boundary
+    for(const x of [18,890]){ctx.fillStyle='#55704a';for(let j=0;j<4;j++){ctx.beginPath();ctx.ellipse(x+j*12,floorY-12-(j%2)*5,17,10,-.3,0,Math.PI*2);ctx.fill();}}
+  }
+  function drawBoss(){
+    const x=boss.x,y=boss.y,w=boss.w,h=boss.h; const bob=Math.sin(boss.anim*3)*3;
+    // placeholder root body with animated leaf crown
+    ctx.strokeStyle='#4d623e';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(x+w*.5,y+h-5);ctx.quadraticCurveTo(x+w*.2,y+h+16,x+w*.12,floorY);ctx.moveTo(x+w*.5,y+h-5);ctx.quadraticCurveTo(x+w*.8,y+h+18,x+w*.92,floorY);ctx.stroke();
+    rounded(x+12,y+30+bob,w-24,h-33,35,hitFlash?'#f4cb77':'#78914e');
+    ctx.fillStyle='#a1b76a';ctx.beginPath();ctx.ellipse(x+w*.5,y+31+bob,43,32,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#41503b';ctx.beginPath();ctx.ellipse(x+39,y+62+bob,5,8,0,0,Math.PI*2);ctx.ellipse(x+66,y+62+bob,5,8,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#43503a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x+52,y+75+bob,10,.2,Math.PI-.2);ctx.stroke();
+    // leafy crown
+    for(let i=0;i<5;i++){ctx.fillStyle=['#58794a','#718e4f','#4d7045'][i%3];ctx.beginPath();ctx.ellipse(x+22+i*16,y+25+bob-(i%2)*14,12,24,(i-2)*.24,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='#d5bc7b';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText('O GUARDIÃO',x+w/2,y-8);
+  }
+  function drawPlayer(){
+    const p=player;ctx.save();if(p.invuln>0&&Math.floor(elapsed*18)%2===0)ctx.globalAlpha=.42;
+    if(heroSprite.complete&&heroSprite.naturalWidth){
+      const spriteW=72,spriteH=108,centerX=p.x+p.w/2,bottomY=p.y+p.h;
+      const throwProgress=p.throwTimer>0?p.throwTimer/.13:0;
+      const lean=p.throwTimer>0?p.face*.13*Math.sin((1-throwProgress)*Math.PI):0;
+      const idleBob=p.y+p.h>=floorY-1?Math.sin(elapsed*8)*1.5:0;
+      ctx.translate(centerX,bottomY+idleBob);ctx.scale(p.face,1);ctx.rotate(lean*p.face);
+      ctx.drawImage(heroSprite,-spriteW/2,-spriteH,spriteW,spriteH);
+    } else {
+      rounded(p.x+8,p.y+17,26,45,7,'#1710d8');rounded(p.x+10,p.y+62,10,8,1,'#1710d8');rounded(p.x+23,p.y+62,10,8,1,'#1710d8');
+    }
+    if(p.dash>0){ctx.globalAlpha=.24;rounded(p.x-p.face*25,p.y+10,25,34,8,'#fff0b0');}
+    ctx.restore();
+  }
+  function drawHazards(){for(const h of hazards){ctx.save();ctx.translate(h.x,h.y);h.angle+=.03;ctx.rotate(h.kind==='root'?Math.sin(h.age*9)*.3:h.angle);
+    if(h.kind==='root'){ctx.fillStyle='#aa6549';ctx.beginPath();ctx.ellipse(0,0,h.r*1.25,h.r*.8,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#704334';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-8,-5);ctx.lineTo(-2,3);ctx.lineTo(5,-4);ctx.stroke();}
+    if(h.kind==='seed'){ctx.fillStyle='#d68b48';ctx.beginPath();ctx.moveTo(0,-h.r);ctx.quadraticCurveTo(h.r*1.3,0,0,h.r);ctx.quadraticCurveTo(-h.r*1.3,0,0,-h.r);ctx.fill();ctx.fillStyle='#6b8a4c';ctx.beginPath();ctx.ellipse(8,-h.r,8,4,-.4,0,Math.PI*2);ctx.fill();}
+    if(h.kind==='spore'){ctx.fillStyle='#a77bd1';ctx.beginPath();ctx.arc(0,0,h.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e6cdf4';ctx.beginPath();ctx.arc(-4,-5,4,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#674a86';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,h.r);ctx.lineTo(-3,h.r+8);ctx.stroke();}
+    ctx.restore();}}
+  function drawHUD(){
+    ctx.fillStyle='#18231de8';ctx.fillRect(24,18,912,76);ctx.strokeStyle='#d6bd82';ctx.lineWidth=2;ctx.strokeRect(24,18,912,76);
+    ctx.textAlign='left';ctx.fillStyle='#f1e5c7';ctx.font='bold 13px system-ui';ctx.fillText('VIDA',42,43);
+    for(let i=0;i<5;i++){ctx.fillStyle=i<player.hp?'#ff7566':'#604944';ctx.beginPath();ctx.arc(53+i*23,66,8,0,Math.PI*2);ctx.fill();}
+    ctx.textAlign='center';ctx.fillStyle='#f4e7c9';ctx.font='bold 14px system-ui';ctx.fillText('O GUARDIÃO DA HORTA',W/2,40);
+    ctx.fillStyle='#433c2e';ctx.fillRect(310,52,340,15);ctx.fillStyle=phase===3?'#c16cb2':'#df795a';ctx.fillRect(310,52,340*(boss.hp/boss.maxHp),15);ctx.strokeStyle='#e2d2a9';ctx.strokeRect(310,52,340,15);
+    ctx.textAlign='right';ctx.fillStyle='#d8cfb9';ctx.font='11px system-ui';ctx.fillText(`FASE ${phase} / 3`,914,81);
+    if(phaseBanner>0){ctx.globalAlpha=Math.min(1,phaseBanner);ctx.textAlign='center';ctx.fillStyle='#fff0c5';ctx.font='bold 25px Georgia';ctx.shadowColor='#18231e';ctx.shadowBlur=8;ctx.fillText(['','RAÍZES ROLANTES','CHUVA DE SEMENTES','ESPOROS TELEGUiADOS'][phase],W/2,145);ctx.shadowBlur=0;ctx.globalAlpha=1;}
+  }
+  function draw(){drawBackground();drawHazards();for(const s of shots){if(bulletSprite.complete&&bulletSprite.naturalWidth){ctx.save();ctx.translate(s.x,s.y);ctx.drawImage(bulletSprite,-10,-10,20,20);ctx.restore();}else{ctx.fillStyle='#78a09f';ctx.fillRect(s.x-10,s.y-10,20,20);}}for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/.25);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;drawBoss();drawPlayer();drawHUD();}
+  function loop(now){if(!running)return;const dt=Math.min((now-last)/1000,.033);last=now;update(dt);draw();if(running)requestAnimationFrame(loop);}
+  draw();
+})();
+</script>
+</body>
+</html>
