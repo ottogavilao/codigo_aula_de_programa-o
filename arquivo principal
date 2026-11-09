@@ -1,183 +1,78 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Horta Maldita — Boss Rush</title>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Steel Ball Run 3D</title>
 <style>
-  :root { color-scheme: dark; --ink:#f7ecd5; --gold:#ffd36c; --red:#ff6b5f; }
-  * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; display:grid; place-items:center; padding:24px; color:var(--ink); background:radial-gradient(ellipse at 50% 15%,#34473e 0,#19251f 48%,#101613 100%); font-family:Georgia,"Times New Roman",serif; }
-  .frame { width:min(100%,1000px); }
-  header { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:0 2px 12px; }
-  h1 { margin:0; font-size:clamp(23px,4vw,36px); letter-spacing:.08em; text-transform:uppercase; text-shadow:3px 3px 0 #5c3027; }
-  .subtitle { margin:5px 0 0; color:#c8c0a9; font:12px/1.3 system-ui,sans-serif; letter-spacing:.12em; text-transform:uppercase; }
-  .badge { color:#e7d8b6; border:1px solid #6d775c; padding:7px 10px; font:11px system-ui,sans-serif; letter-spacing:.12em; white-space:nowrap; }
-  .screen { position:relative; border:3px solid #d6bd82; box-shadow:0 0 0 5px #27352d,0 20px 70px #0009; background:#9db28a; }
-  canvas { display:block; width:100%; height:auto; image-rendering:pixelated; }
-  .overlay { position:absolute; inset:0; display:grid; place-items:center; background:#101711b8; text-align:center; padding:24px; }
-  .panel { max-width:540px; padding:22px 28px; background:#18231eeF; border:2px solid #d6bd82; box-shadow:7px 7px 0 #101510; }
-  .panel h2 { margin:0 0 8px; color:var(--gold); font-size:clamp(24px,4vw,38px); text-transform:uppercase; letter-spacing:.08em; }
-  .panel p { color:#e4ddc9; font:14px/1.6 system-ui,sans-serif; margin:8px 0 16px; }
-  button { border:0; padding:12px 23px; color:#18231e; background:var(--gold); font:bold 13px system-ui,sans-serif; letter-spacing:.13em; text-transform:uppercase; cursor:pointer; box-shadow:4px 4px 0 #8e5435; }
-  button:hover { transform:translate(1px,1px); box-shadow:3px 3px 0 #8e5435; }
-  .controls { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; padding:12px 5px 0; color:#d5d0c0; font:12px system-ui,sans-serif; }
-  kbd { color:#fff0c8; background:#29372f; border:1px solid #63715e; padding:2px 6px; border-radius:3px; font:11px ui-monospace,monospace; }
-  @media(max-width:600px){ body{padding:12px} header{align-items:start; flex-direction:column}.badge{display:none}.controls{font-size:10px} }
-</style>
-</head>
-<body>
-<main class="frame">
-  <header><div><h1>Horta Maldita</h1><p class="subtitle">Boss Rush · Jardim das Raízes · Protótipo 01</p></div><div class="badge">CHEFE 01 — O GUARDIÃO</div></header>
-  <div class="screen">
-    <canvas id="game" width="960" height="540" aria-label="Arena do jogo Horta Maldita"></canvas>
-    <div class="overlay" id="overlay"><div class="panel"><h2 id="overlayTitle">O Guardião da Horta</h2><p id="overlayText">Uma raiz antiga protege o jardim. Atravesse as três investidas e acerte o guardião até ele desistir. Os desenhos são formas temporárias: depois trocamos por seus sprites.</p><button id="startButton">Começar luta</button></div></div>
-  </div>
-  <div class="controls"><span><kbd>A</kbd> <kbd>D</kbd> mover</span><span><kbd>ESPAÇO</kbd> pular</span><span><kbd>J</kbd> atirar</span><span><kbd>SHIFT</kbd> esquiva</span><span><kbd>R</kbd> reiniciar</span></div>
-</main>
+:root{--bg:#f3e3c3;--fg:#3b2412;--ac:#b5451b;--pn:rgba(243,227,195,.95);--bd:#7a4a24;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#2a1b10;--fg:#f1dcb4;--ac:#e0702f;--pn:rgba(42,27,16,.95);--bd:#c08a4c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#2a1b10;--fg:#f1dcb4;--ac:#e0702f;--pn:rgba(42,27,16,.95);--bd:#c08a4c;color-scheme:dark}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:Georgia,"Times New Roman",serif}
+#cv{position:fixed;inset:0;width:100%;height:100%}
+.ov{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:12px;box-sizing:border-box}
+.pn{background:var(--pn);border:2px solid var(--bd);border-radius:12px;padding:14px 18px;max-width:720px;width:100%;margin:auto;box-sizing:border-box;text-align:center}
+h1{margin:0;font-size:28px;letter-spacing:2px;color:var(--ac)}h2{margin:12px 0 6px;font-size:16px}p{margin:6px 0}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+.b{font:inherit;font-weight:bold;padding:10px 16px;border-radius:8px;border:2px solid var(--bd);background:var(--ac);color:#fff;cursor:pointer}.b:disabled{opacity:.4}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.cd{border:2px solid var(--bd);border-radius:8px;padding:8px;cursor:pointer;text-align:left;font-size:13px}.cd.on{background:var(--ac);color:#fff}.cd small{display:block;opacity:.85;margin-top:3px}
+.hd{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;width:200px;background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:13px}
+.bar{height:9px;background:rgba(0,0,0,.25);border-radius:5px;margin:4px 0 8px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ac)}
+#msg{position:fixed;top:30%;left:0;right:0;text-align:center;font-size:72px;font-weight:bold;color:#fff;text-shadow:0 3px 8px #000;pointer-events:none}
+#tc{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);display:flex;justify-content:space-between;padding:0 10px;touch-action:none}
+#tc button{font-size:20px;padding:16px 18px;border-radius:12px;border:2px solid var(--bd);background:var(--pn);color:var(--fg);touch-action:none}
+.ar{font-size:64px;animation:p .5s infinite alternate}@keyframes p{to{transform:scale(1.3) rotate(-20deg)}}
+[hidden]{display:none!important}
+</style></head><body>
+<canvas id="cv"></canvas>
+<div id="menu" class="ov"></div><div id="gc" class="ov" hidden></div>
+<div id="hud" class="hd" hidden><div id="pos"></div><div class="bar"><i id="sb"></i></div><div id="sk"></div><div class="bar"><i id="pb"></i></div></div>
+<div id="msg"></div>
+<div id="tc" hidden><span><button data-k="l">◀</button> <button data-k="r">▶</button></span><span><button data-k="g">GALOPAR</button> <button data-k="s">STAND</button></span></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-(() => {
-  const canvas = document.querySelector('#game');
-  const ctx = canvas.getContext('2d');
-  const heroSprite = new Image(); heroSprite.src = 'assets/personagem.svg';
-  const bulletSprite = new Image(); bulletSprite.src = 'assets/bala.svg';
-  const overlay = document.querySelector('#overlay');
-  const overlayTitle = document.querySelector('#overlayTitle');
-  const overlayText = document.querySelector('#overlayText');
-  const startButton = document.querySelector('#startButton');
-  const W = canvas.width, H = canvas.height, floorY = 455;
-  const keys = new Set();
-  let player, boss, shots, hazards, particles, running = false, won = false, last = 0, elapsed = 0;
-  let phase = 1, attackClock = 0, phaseBanner = 0, hitFlash = 0;
-  const rand = (a,b) => a + Math.random()*(b-a);
-  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
-
-  function reset() {
-    player = {x:150,y:floorY-70,w:42,h:70,vx:0,vy:0,hp:5,face:1,invuln:0,dash:0,shootCd:0,throwTimer:0};
-    boss = {x:700,y:floorY-122,w:104,h:122,hp:100,maxHp:100,anim:0};
-    shots=[]; hazards=[]; particles=[]; phase=1; attackClock=0; elapsed=0; phaseBanner=2.2; hitFlash=0; won=false;
-  }
-  reset();
-  function start() { reset(); overlay.style.display='none'; running=true; last=performance.now(); requestAnimationFrame(loop); }
-  startButton.addEventListener('click', start);
-  window.addEventListener('keydown', e => {
-    if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code)) e.preventDefault();
-    keys.add(e.code);
-    if(e.code==='KeyR' && !running) start();
-    if(e.code==='Space' && running && player.y+player.h>=floorY-1) player.vy=-570;
-    if((e.code==='ShiftLeft'||e.code==='ShiftRight') && running && player.dash<=0){player.dash=.19;player.invuln=.42;player.vx=player.face*670;}
-  });
-  window.addEventListener('keyup', e => keys.delete(e.code));
-
-  function spawn(kind,x,y,options={}) { hazards.push({kind,x,y,r:options.r||18,vx:options.vx||0,vy:options.vy||0,life:options.life||8, homing:!!options.homing, age:0, angle:0}); }
-  function attacks(dt) {
-    attackClock-=dt;
-    if(phase===1 && attackClock<=0){
-      const fromLeft=Math.random()<.5;
-      spawn('root',fromLeft?-25:W+25,floorY-16,{r:22,vx:fromLeft?rand(200,280):-rand(200,280),life:7});
-      if(Math.random()<.28) spawn('root',fromLeft?-25:W+25,floorY-16,{r:14,vx:fromLeft?rand(290,350):-rand(290,350),life:6});
-      attackClock=rand(1.35,2.1);
-    } else if(phase===2 && attackClock<=0) {
-      const x=rand(90,W-90); spawn('seed',x,-25,{r:16,vy:rand(210,300),life:5});
-      if(Math.random()<.52) spawn('seed',rand(90,W-90),-25,{r:12,vy:rand(260,340),life:5});
-      attackClock=rand(.65,1.05);
-    } else if(phase===3 && attackClock<=0) {
-      spawn('spore',boss.x+boss.w/2,boss.y+45,{r:13,vx:rand(-60,60),vy:rand(-60,60),homing:true,life:7});
-      if(Math.random()<.55) spawn('spore',boss.x+boss.w/2,boss.y+60,{r:11,vx:rand(-80,80),vy:rand(-55,55),homing:true,life:7});
-      attackClock=rand(.9,1.35);
-    }
-  }
-  function update(dt) {
-    elapsed+=dt; phaseBanner=Math.max(0,phaseBanner-dt); hitFlash=Math.max(0,hitFlash-dt);
-    const oldPhase=phase;
-    phase=boss.hp>66?1:boss.hp>33?2:3;
-    if(phase!==oldPhase){phaseBanner=2.3;attackClock=.65;}
-    boss.anim+=dt;
-    const move=(keys.has('KeyD')||keys.has('ArrowRight')?1:0)-(keys.has('KeyA')||keys.has('ArrowLeft')?1:0);
-    if(player.dash>0) player.dash-=dt; else player.vx=move*250;
-    if(move && player.dash<=0) player.face=move;
-    if(keys.has('KeyJ') && player.shootCd<=0){player.throwTimer=.13;shots.push({x:player.x+player.w/2+player.face*31,y:player.y+player.h*.43,vx:player.face*590,life:1.2});player.shootCd=.2;}
-    player.throwTimer=Math.max(0,player.throwTimer-dt);
-    player.shootCd=Math.max(0,player.shootCd-dt); player.invuln=Math.max(0,player.invuln-dt);
-    player.x=clamp(player.x+player.vx*dt,18,W-player.w-18);
-    player.vy+=1450*dt; player.y+=player.vy*dt;
-    if(player.y+player.h>floorY){player.y=floorY-player.h;player.vy=0;}
-    attacks(dt);
-    for(const s of shots){s.x+=s.vx*dt;s.life-=dt;if(s.x>boss.x-12&&s.x<boss.x+boss.w+12&&s.y>boss.y&&s.y<boss.y+boss.h){s.life=0;boss.hp=Math.max(0,boss.hp-1.6);hitFlash=.08;for(let i=0;i<3;i++)particles.push({x:s.x,y:s.y,vx:rand(-80,80),vy:rand(-100,30),life:.25,color:'#ffe28a'});}}
-    shots=shots.filter(s=>s.life>0&&s.x>-20&&s.x<W+20);
-    for(const h of hazards){h.age+=dt;h.life-=dt;
-      if(h.homing){const dx=player.x+player.w/2-h.x,dy=player.y+player.h/2-h.y,len=Math.max(1,Math.hypot(dx,dy));h.vx+=(dx/len*210-h.vx)*dt*1.35;h.vy+=(dy/len*210-h.vy)*dt*1.35;}
-      h.x+=h.vx*dt;h.y+=h.vy*dt;
-      if(h.kind==='root'&&h.x>W+50)h.life=0;if(h.kind==='root'&&h.x<-50)h.life=0;
-      if(h.kind==='seed'&&h.y+h.r>=floorY){h.y=floorY-h.r;h.vy=0;h.life=Math.min(h.life,1.1);}
-      if(player.invuln<=0&&Math.abs(h.x-(player.x+player.w/2))<h.r+player.w*.37&&Math.abs(h.y-(player.y+player.h/2))<h.r+player.h*.36){
-        player.hp--;player.invuln=1.1;player.vx=(player.x+player.w/2<h.x?-1:1)*300;player.vy=-260;h.life=0;
-        if(player.hp<=0) finish(false);
-      }
-    }
-    hazards=hazards.filter(h=>h.life>0);
-    for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}
-    particles=particles.filter(p=>p.life>0);
-    if(boss.hp<=0) finish(true);
-  }
-  function finish(victory){ if(!running)return; running=false;won=victory;overlay.style.display='grid';overlayTitle.textContent=victory?'Jardim protegido!':'A horta venceu';overlayText.textContent=victory?'Você derrotou o Guardião. O próximo boss pode entrar no mapa quando seus sprites estiverem prontos.':'As raízes te pegaram. Respire fundo e tente outra vez.';startButton.textContent=victory?'Jogar de novo':'Tentar de novo'; }
-  function rounded(x,y,w,h,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
-  function drawBackground(){
-    const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#a9c39a');sky.addColorStop(.7,'#d7c995');sky.addColorStop(1,'#b5a573');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='#849d77';ctx.beginPath();ctx.moveTo(0,300);ctx.quadraticCurveTo(180,190,360,300);ctx.quadraticCurveTo(550,210,740,300);ctx.quadraticCurveTo(850,220,960,285);ctx.lineTo(960,455);ctx.lineTo(0,455);ctx.fill();
-    // Ruined greenhouse silhouette
-    ctx.strokeStyle='#657960';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(90,278);ctx.lineTo(90,158);ctx.lineTo(195,95);ctx.lineTo(300,158);ctx.lineTo(300,278);ctx.moveTo(90,158);ctx.lineTo(300,158);ctx.moveTo(195,98);ctx.lineTo(195,278);ctx.stroke();
-    ctx.globalAlpha=.35;for(let i=0;i<16;i++){const x=(i*89+25)%W;ctx.fillStyle=i%2?'#f7e5a0':'#eff3c1';ctx.beginPath();ctx.ellipse(x,100+(i*53)%260,2,2,0,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
-    ctx.fillStyle='#594833';ctx.fillRect(0,floorY,W,H-floorY);ctx.fillStyle='#7d6843';ctx.fillRect(0,floorY,W,8);
-    for(let i=0;i<24;i++){let x=i*43+(i%2)*12;ctx.fillStyle=i%3?'#6c5739':'#96794a';ctx.fillRect(x,floorY+17,28,3);}
-    // small edge shrubs / arena boundary
-    for(const x of [18,890]){ctx.fillStyle='#55704a';for(let j=0;j<4;j++){ctx.beginPath();ctx.ellipse(x+j*12,floorY-12-(j%2)*5,17,10,-.3,0,Math.PI*2);ctx.fill();}}
-  }
-  function drawBoss(){
-    const x=boss.x,y=boss.y,w=boss.w,h=boss.h; const bob=Math.sin(boss.anim*3)*3;
-    // placeholder root body with animated leaf crown
-    ctx.strokeStyle='#4d623e';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(x+w*.5,y+h-5);ctx.quadraticCurveTo(x+w*.2,y+h+16,x+w*.12,floorY);ctx.moveTo(x+w*.5,y+h-5);ctx.quadraticCurveTo(x+w*.8,y+h+18,x+w*.92,floorY);ctx.stroke();
-    rounded(x+12,y+30+bob,w-24,h-33,35,hitFlash?'#f4cb77':'#78914e');
-    ctx.fillStyle='#a1b76a';ctx.beginPath();ctx.ellipse(x+w*.5,y+31+bob,43,32,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#41503b';ctx.beginPath();ctx.ellipse(x+39,y+62+bob,5,8,0,0,Math.PI*2);ctx.ellipse(x+66,y+62+bob,5,8,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#43503a';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x+52,y+75+bob,10,.2,Math.PI-.2);ctx.stroke();
-    // leafy crown
-    for(let i=0;i<5;i++){ctx.fillStyle=['#58794a','#718e4f','#4d7045'][i%3];ctx.beginPath();ctx.ellipse(x+22+i*16,y+25+bob-(i%2)*14,12,24,(i-2)*.24,0,Math.PI*2);ctx.fill();}
-    ctx.fillStyle='#d5bc7b';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText('O GUARDIÃO',x+w/2,y-8);
-  }
-  function drawPlayer(){
-    const p=player;ctx.save();if(p.invuln>0&&Math.floor(elapsed*18)%2===0)ctx.globalAlpha=.42;
-    if(heroSprite.complete&&heroSprite.naturalWidth){
-      const spriteW=72,spriteH=108,centerX=p.x+p.w/2,bottomY=p.y+p.h;
-      const throwProgress=p.throwTimer>0?p.throwTimer/.13:0;
-      const lean=p.throwTimer>0?p.face*.13*Math.sin((1-throwProgress)*Math.PI):0;
-      const idleBob=p.y+p.h>=floorY-1?Math.sin(elapsed*8)*1.5:0;
-      ctx.translate(centerX,bottomY+idleBob);ctx.scale(p.face,1);ctx.rotate(lean*p.face);
-      ctx.drawImage(heroSprite,-spriteW/2,-spriteH,spriteW,spriteH);
-    } else {
-      rounded(p.x+8,p.y+17,26,45,7,'#1710d8');rounded(p.x+10,p.y+62,10,8,1,'#1710d8');rounded(p.x+23,p.y+62,10,8,1,'#1710d8');
-    }
-    if(p.dash>0){ctx.globalAlpha=.24;rounded(p.x-p.face*25,p.y+10,25,34,8,'#fff0b0');}
-    ctx.restore();
-  }
-  function drawHazards(){for(const h of hazards){ctx.save();ctx.translate(h.x,h.y);h.angle+=.03;ctx.rotate(h.kind==='root'?Math.sin(h.age*9)*.3:h.angle);
-    if(h.kind==='root'){ctx.fillStyle='#aa6549';ctx.beginPath();ctx.ellipse(0,0,h.r*1.25,h.r*.8,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#704334';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-8,-5);ctx.lineTo(-2,3);ctx.lineTo(5,-4);ctx.stroke();}
-    if(h.kind==='seed'){ctx.fillStyle='#d68b48';ctx.beginPath();ctx.moveTo(0,-h.r);ctx.quadraticCurveTo(h.r*1.3,0,0,h.r);ctx.quadraticCurveTo(-h.r*1.3,0,0,-h.r);ctx.fill();ctx.fillStyle='#6b8a4c';ctx.beginPath();ctx.ellipse(8,-h.r,8,4,-.4,0,Math.PI*2);ctx.fill();}
-    if(h.kind==='spore'){ctx.fillStyle='#a77bd1';ctx.beginPath();ctx.arc(0,0,h.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e6cdf4';ctx.beginPath();ctx.arc(-4,-5,4,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#674a86';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,h.r);ctx.lineTo(-3,h.r+8);ctx.stroke();}
-    ctx.restore();}}
-  function drawHUD(){
-    ctx.fillStyle='#18231de8';ctx.fillRect(24,18,912,76);ctx.strokeStyle='#d6bd82';ctx.lineWidth=2;ctx.strokeRect(24,18,912,76);
-    ctx.textAlign='left';ctx.fillStyle='#f1e5c7';ctx.font='bold 13px system-ui';ctx.fillText('VIDA',42,43);
-    for(let i=0;i<5;i++){ctx.fillStyle=i<player.hp?'#ff7566':'#604944';ctx.beginPath();ctx.arc(53+i*23,66,8,0,Math.PI*2);ctx.fill();}
-    ctx.textAlign='center';ctx.fillStyle='#f4e7c9';ctx.font='bold 14px system-ui';ctx.fillText('O GUARDIÃO DA HORTA',W/2,40);
-    ctx.fillStyle='#433c2e';ctx.fillRect(310,52,340,15);ctx.fillStyle=phase===3?'#c16cb2':'#df795a';ctx.fillRect(310,52,340*(boss.hp/boss.maxHp),15);ctx.strokeStyle='#e2d2a9';ctx.strokeRect(310,52,340,15);
-    ctx.textAlign='right';ctx.fillStyle='#d8cfb9';ctx.font='11px system-ui';ctx.fillText(`FASE ${phase} / 3`,914,81);
-    if(phaseBanner>0){ctx.globalAlpha=Math.min(1,phaseBanner);ctx.textAlign='center';ctx.fillStyle='#fff0c5';ctx.font='bold 25px Georgia';ctx.shadowColor='#18231e';ctx.shadowBlur=8;ctx.fillText(['','RAÍZES ROLANTES','CHUVA DE SEMENTES','ESPOROS TELEGUiADOS'][phase],W/2,145);ctx.shadowBlur=0;ctx.globalAlpha=1;}
-  }
-  function draw(){drawBackground();drawHazards();for(const s of shots){if(bulletSprite.complete&&bulletSprite.naturalWidth){ctx.save();ctx.translate(s.x,s.y);ctx.drawImage(bulletSprite,-10,-10,20,20);ctx.restore();}else{ctx.fillStyle='#78a09f';ctx.fillRect(s.x-10,s.y-10,20,20);}}for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/.25);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;drawBoss();drawPlayer();drawHUD();}
-  function loop(now){if(!running)return;const dt=Math.min((now-last)/1000,.033);last=now;update(dt);draw();if(running)requestAnimationFrame(loop);}
-  draw();
-})();
-</script>
-</body>
-</html>
+const $=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a);
+const CH=[
+{id:'johnny',n:'Johnny Joestar',c:0x2f5fa8,spd:1,sta:130,hnd:1,d:'Persistente: muita stamina'},
+{id:'gyro',n:'Gyro Zeppeli',c:0x1e7a4a,spd:1.08,sta:100,hnd:1.1,d:'Veloz e ágil'},
+{id:'diego',n:'Diego Brando',c:0xc8b030,spd:1.1,sta:90,hnd:1.2,d:'Predador: muito ágil'},
+{id:'valentine',n:'Funny Valentine',c:0x7a1f3a,spd:1.05,sta:115,hnd:.95,d:'Equilibrado e imponente'},
+{id:'hotpants',n:'Hot Pants',c:0xc23b6b,spd:1,sta:110,hnd:1.15,d:'Curvas precisas'},
+{id:'tim',n:'Mountain Tim',c:0x6b4a2a,spd:.98,sta:150,hnd:.9,d:'Tanque: stamina enorme'}];
+const ST=[
+{id:'tusk1',n:'Tusk ACT1',r:0,pw:.03,k:'dash',d:2,cd:12,t:'Impulso curto'},
+{id:'lone',n:'Oh! Lonesome Me',r:0,pw:.03,k:'regen',d:1,cd:14,t:'Recupera stamina'},
+{id:'tusk2',n:'Tusk ACT2',r:1,pw:.06,k:'dash',d:2.5,cd:12,t:'Impulso médio'},
+{id:'ball',n:'Ball Breaker',r:1,pw:.06,k:'regen',d:1.5,cd:13,t:'Stamina total + impulso'},
+{id:'cream',n:'Cream Starter',r:2,pw:.08,k:'warp',d:50,cd:14,t:'Salto para frente'},
+{id:'scary',n:'Scary Monsters',r:2,pw:.08,k:'dash',d:3,cd:12,t:'Impulso longo'},
+{id:'d4c',n:'D4C',r:3,pw:.1,k:'warp',d:90,cd:15,t:'Salta entre dimensões'},
+{id:'tusk4',n:'Tusk ACT4',r:3,pw:.12,k:'dash',d:4.5,cd:16,t:'Rotação infinita: impulso enorme'}];
+const RN=['Comum','Raro','Épico','Lendário'],RC=['#8a8a8a','#2f7fd0','#9a4ad0','#e0a020'],L=1000;
+let S={arrows:1,ch:'johnny',st:null,own:{},races:0,wins:0};
+try{Object.assign(S,JSON.parse(localStorage.getItem('sbr1')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('sbr1',JSON.stringify(S))}catch(e){}};
+/* ---------- 3D ---------- */
+const R=new THREE.WebGLRenderer({canvas:$('cv'),antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(65,1,.5,900);
+scene.background=new THREE.Color(0xf0c27a);scene.fog=new THREE.Fog(0xf0c27a,60,420);
+scene.add(new THREE.HemisphereLight(0xfff1d0,0x8a5a2a,.95));
+const sun=new THREE.DirectionalLight(0xffffff,.7);sun.position.set(30,50,20);scene.add(sun);
+function rs(){R.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
+addEventListener('resize',rs);rs();
+const MT=c=>new THREE.MeshLambertMaterial({color:c});
+function box(g,w,h,d,c,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),MT(c));m.position.set(x,y,z);g.add(m);return m}
+function mkHorse(col,rc){const g=new THREE.Group();
+box(g,1.2,1.2,3,col,0,2,0);box(g,.6,1.4,.7,col,0,2.7,-1.6).rotation.x=.5;box(g,.5,.6,1,col,0,3.2,-2.2);
+g.userData.legs=[[-.45,-1.1],[.45,-1.1],[-.45,1.1],[.45,1.1]].map(([x,z])=>{const l=new THREE.Group();l.position.set(x,1.4,z);box(l,.35,1.4,.35,0x3b2412,0,-.7,0);g.add(l);return l});
+box(g,.8,1.1,.6,rc,0,3.2,.2);box(g,.45,.45,.45,0xf0c8a0,0,4,.2);box(g,.95,.1,.95,0x3b2412,0,4.3,.2);box(g,.5,.3,.5,0x3b2412,0,4.5,.2);return g}
+function mkCactus(s){const g=new THREE.Group(),c=0x3f7a3a;const t=new THREE.Mesh(new THREE.CylinderGeometry(.4*s,.5*s,3*s,8),MT(c));t.position.y=1.5*s;g.add(t);
+const a=new THREE.Mesh(new THREE.CylinderGeometry(.25*s,.25*s,1.2*s,6),MT(c));a.position.set(.8*s,2*s,0);g.add(a);return g}
+let world,horses=[],P,obs=[],order=[],state='menu',cnt=0,T=0;
+const K={l:0,r:0,g:0,s:0};
+function reset(){if(world)scene.remove(world);world=new THREE.Group();scene.add(world);obs=[];order=[];horses=[];
+const gr=new THREE.Mesh(new THREE.PlaneGeometry(700,L+700),MT(0xd9a95f));gr.rotation.x=-Math.PI/2;gr.position.z=-L/2;world.add(gr);
+const tr=new THREE.Mesh(new THREE.PlaneGeometry(36,L+120),MT(0xb98348));tr.rotation.x=-Math.PI/2;tr.position.set(0,.05,-L/2);world.add(tr);
+for(let i=0;i<70;i++){const o=i%3?mkCactus(rnd(.9,1.4)):new THREE.Mesh(new THREE.DodecahedronGeometry(1.3),MT(0x7a6a5a));
+o.position.set(rnd(-15,15),o.geometry?1:0,-rnd(90,L-30));o.rotation.y=rnd(0,6);world.add(o);obs.push(o)}
+for(let i=0;i<110;i++){const c=mkCactus(rnd(1,2));c.position.set((Math.random()<.5?-1:1)*rnd(24,90),0,-rnd(-30,L+80));world.add(c)}
+for(let
