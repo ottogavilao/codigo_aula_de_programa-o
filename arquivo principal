@@ -26,9 +26,9 @@ h1{margin:0;font-size:28px;letter-spacing:2px;color:var(--ac)}h2{margin:12px 0 6
 </style></head><body>
 <canvas id="cv"></canvas>
 <div id="menu" class="ov"></div><div id="gc" class="ov" hidden></div>
-<div id="hud" class="hd" hidden><div id="pos"></div><div class="bar"><i id="sb"></i></div><div id="sk"></div><div id="wk"></div><div class="bar"><i id="pb"></i></div></div>
+<div id="hud" class="hd" hidden><div id="pos"></div><div class="bar"><i id="sb"></i></div><div id="sk"></div><div class="bar"><i id="pb"></i></div></div>
 <div id="msg"></div><div id="fl"></div>
-<div id="tc" hidden><span><button data-k="l">◀</button> <button data-k="r">▶</button></span><span><button data-k="g">GALOPAR</button> <button data-k="s">STAND</button> <button data-k="w">ARMA</button></span></div>
+<div id="tc" hidden><span><button data-k="l">◀</button> <button data-k="r">▶</button></span><span><button data-k="g">GALOPAR</button> <button data-k="s">STAND</button></span></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const $=id=>document.getElementById(id),rnd=(a,b)=>a+Math.random()*(b-a),pk=a=>a[Math.floor(Math.random()*a.length)];
@@ -54,13 +54,8 @@ const CH=[
 ['pucci','Enrico Pucci',0xe0e0e0,1.07,110,1,3,'Made in Heaven','Acelera o tempo: x2.4 e rivais lentos',22],
 ['diavolo','Diavolo',0xc03a7a,1.05,110,1,3,'King Crimson','Apaga o tempo: +30m, imune, rivais paralisam 1.5s',20]
 ].map(a=>({id:a[0],n:a[1],c:a[2],spd:a[3],sta:a[4],hnd:a[5],r:a[6],sn:a[7],t:a[8],cd:a[9]}));
-const TS=[1,2,3.5,5,7]; // segundos de paralisia por nível da arma
-const WP=[['sling','Estilingue',0,'(inicial)'],['knife','Faca de Arremesso',0,''],['colt','Colt Peacemaker',1,''],['bow','Arco e Flecha',1,''],
-['wins','Rifle Winchester',2,''],['lasso','Laço de Vaqueiro',2,''],['dyn','Dinamite',3,'· explosão em área'],['gat','Metralhadora Gatling',3,'· até 3 rivais'],
-['ball','Bola de Aço Dourada',4,'']].map(a=>({id:a[0],n:a[1],r:a[2],x:a[3]}));
-const RNW=['Comum','Incomum','Raro','Épico','Lendário'],RCW=['#8a8a8a','#3aa860','#2f7fd0','#9a4ad0','#e0a020'];
-const RNC=['Comum','Raro','Épico','Lendário'],RCC=[RCW[0],RCW[2],RCW[3],RCW[4]];
-let S={arrows:1,tk:2,ch:'johnny',own:{},wp:'sling',ownW:{sling:1},races:0,wins:0};
+const RNC=['Comum','Raro','Épico','Lendário'],RCC=['#8a8a8a','#2f7fd0','#9a4ad0','#e0a020'];
+let S={arrows:1,ch:'johnny',own:{},races:0,wins:0};
 try{Object.assign(S,JSON.parse(localStorage.getItem('sbr2')||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem('sbr2',JSON.stringify(S))}catch(e){}};
 /* ---------- 3D ---------- */
@@ -97,8 +92,8 @@ const fl=new THREE.Mesh(new THREE.PlaneGeometry(W,4),new THREE.MeshBasicMaterial
 box(world,1,12,1,0x3b2412,R-W/2-1,6,0);box(world,1,12,1,0x3b2412,R+W/2+1,6,0);box(world,W+3,1.5,1,0xb5451b,R,12,0);
 const me=CH.find(c=>c.id==S.ch),others=CH.filter(c=>c.id!=S.ch).sort(()=>Math.random()-.5).slice(0,N-1),sl=[3,0,1,2,4,5,6,7,8,9,10,11];
 [me,...others].forEach((c,i)=>{const g=mkHorse(pk([0x6b4a2a,0x2a2a2a,0xd8d0c0,0x8a5a2a]),c.c),p=!i,n=p?(S.own[c.id]||0):1;
-const h={g,ch:c,p,own:n>0,x:-17.5+(sl[i]%6)*7,s:-Math.floor(sl[i]/6)*9,v:0,max:c.sta,sta:c.sta,bm:1,boost:0,slow:0,imm:0,inv:0,frz:0,conf:0,inf:0,cd:0,wcd:0,fin:false,tired:0,
-pw:n?(.03+.02*c.r)*(1+.1*(n-1)):0,hnd:c.hnd,ai:rnd(.95,1.04),aiG:1,aiT:0,ph:rnd(0,6),w:p?WP.find(w=>w.id==S.wp):pk(WP.filter(w=>w.r<3))};
+const h={g,ch:c,p,own:n>0,x:-17.5+(sl[i]%6)*7,s:-Math.floor(sl[i]/6)*9,v:0,max:c.sta,sta:c.sta,bm:1,boost:0,slow:0,imm:0,inv:0,frz:0,conf:0,inf:0,cd:0,fin:false,tired:0,
+pw:n?(.03+.02*c.r)*(1+.1*(n-1)):0,hnd:c.hnd,ai:rnd(.95,1.04),aiG:1,aiT:0,ph:rnd(0,6)};
 world.add(g);horses.push(h);anim(h,0)});P=horses[0]}
 /* ---------- poderes ---------- */
 const fr=h=>horses.filter(x=>x!==h&&!x.fin),ah=h=>fr(h).filter(x=>x.s>h.s).sort((a,b)=>a.s-b.s),lead=()=>[...horses].sort((a,b)=>b.s-a.s)[0];
@@ -123,19 +118,15 @@ jolyne:h=>{const n=ah(h)[0];if(n){h.s=Math.max(h.s,n.s-3);h.x=n.x}},
 pucci:h=>{B(h,5,2.4);fr(h).forEach(x=>Sl(x,3))},
 diavolo:h=>{h.s+=30;h.inv=2;fr(h).forEach(x=>Z(x,1.5))}};
 function skill(h){if(h.cd>0||h.frz>0||h.fin||!h.own)return;h.cd=h.ch.cd;SK[h.ch.id](h);if(h.p)flash(h.ch.sn+'!')}
-function fire(h){if(h.wcd>0||h.frz>0||h.fin)return;const w=h.w,c=ah(h).filter(x=>x.s-h.s<120&&Math.abs(x.x-h.x)<20&&x.inv<=0);if(!c.length)return;h.wcd=5;
-let tg=[c[0]];if(w.id=='dyn')tg=c.filter(x=>Math.abs(x.s-c[0].s)<15);if(w.id=='gat')tg=c.slice(0,3);
-tg.forEach(x=>{Z(x,TS[w.r]);if(x.p)flash(h.ch.n+' acertou você com '+w.n+'! Paralisado '+TS[w.r]+'s')});
-if(h.p)flash(w.n+': '+tg.map(x=>x.ch.n).join(', ')+' paralisado '+TS[w.r]+'s!')}
 /* ---------- corrida ---------- */
 function step(h,dt){let st=0,gal=0;
-['cd','wcd','boost','slow','imm','inv','frz','conf','inf'].forEach(k=>h[k]=Math.max(0,h[k]-dt));
+['cd','boost','slow','imm','inv','frz','conf','inf'].forEach(k=>h[k]=Math.max(0,h[k]-dt));
 if(h.fin||h.frz>0){h.v+=((h.fin?6:0)-h.v)*Math.min(1,6*dt);h.s+=h.v*dt;return anim(h,dt)}
-if(h.p){st=K.r-K.l;gal=K.g;if(K.s)skill(h);if(K.w)fire(h)}
+if(h.p){st=K.r-K.l;gal=K.g;if(K.s)skill(h)}
 else{h.aiT-=dt;if(h.aiT<=0){h.aiT=rnd(1.5,3);h.aiG=Math.random()<.65}
 gal=h.aiG&&h.sta>20;let tx=h.x;
 for(const o of obs){const d=((o.s-h.s)%LAP+LAP)%LAP;if(!o.dead&&d<25&&Math.abs(o.x-h.x)<3.2){tx=o.x+(o.x>h.x?-4:4);break}}
-st=Math.max(-1,Math.min(1,(tx-h.x)*.6));if(Math.random()<dt*.12)skill(h);if(Math.random()<dt*.25)fire(h)}
+st=Math.max(-1,Math.min(1,(tx-h.x)*.6));if(Math.random()<dt*.12)skill(h)}
 if(h.conf>0)st=-st;
 if(gal&&h.sta>0&&!h.tired){if(!h.inf)h.sta-=25*dt;if(h.sta<=0){h.sta=0;h.tired=1}}else{gal=0;h.sta=Math.min(h.max,h.sta+14*dt);if(h.sta>20)h.tired=0}
 h.x=Math.max(-W/2+1,Math.min(W/2-1,h.x+st*13*h.hnd*dt));
@@ -149,8 +140,8 @@ g.userData.legs.forEach((l,i)=>l.rotation.x=Math.sin(h.ph+(i==0||i==3?0:Math.PI)
 function go(){reset();$('menu').hidden=true;$('hud').hidden=false;$('tc').hidden=false;state='count';cnt=3.99}
 function finish(){state='done';$('hud').hidden=true;$('tc').hidden=true;
 const rest=horses.filter(h=>!h.fin).sort((a,b)=>b.s-a.s),all=[...order,...rest],rk=all.indexOf(P)+1;
-S.arrows+=5;S.tk+=3;S.races++;if(rk==1)S.wins++;save();
-setTimeout(()=>{state='menu';$('menu').hidden=false;$('menu').innerHTML=`<div class="pn"><h1>${rk==1?'VITÓRIA!':rk+'º lugar'}</h1><h2>Classificação</h2>`+all.map((h,i)=>`<p${h.p?' style="font-weight:bold;color:var(--ac)"':''}>${i+1}. ${h.ch.n}</p>`).join('')+`<p>🏹 +5 flechas de Stand (total ${S.arrows}) · 🔫 +3 fichas de arma (total ${S.tk})</p><div class="row"><button class="b" onclick="back()">Continuar</button></div></div>`},1500)}
+S.arrows+=5;S.races++;if(rk==1)S.wins++;save();
+setTimeout(()=>{state='menu';$('menu').hidden=false;$('menu').innerHTML=`<div class="pn"><h1>${rk==1?'VITÓRIA!':rk+'º lugar'}</h1><h2>Classificação</h2>`+all.map((h,i)=>`<p${h.p?' style="font-weight:bold;color:var(--ac)"':''}>${i+1}. ${h.ch.n}</p>`).join('')+`<p>🏹 +5 flechas de Stand (total ${S.arrows})</p><div class="row"><button class="b" onclick="back()">Continuar</button></div></div>`},1500)}
 function back(){reset();render()}
 function update(dt){
 if(state=='count'){cnt-=dt;$('msg').textContent=cnt>0?Math.ceil(cnt):'GO!';if(cnt<=0){state='race';setTimeout(()=>$('msg').textContent='',700)}}
@@ -158,8 +149,7 @@ if(state=='race'||state=='done'){horses.forEach(h=>step(h,dt));if(state=='race')
 const rk=1+horses.filter(h=>h.s>P.s).length,c=P.ch;
 $('pos').innerHTML=`<b>Posição ${rk}/${horses.length}</b> · Volta ${Math.min(LAPS,Math.floor(P.s/LAP)+1)}/${LAPS}<br>${Math.round(P.v*3.6)} km/h${P.frz>0?' · PARALISADO '+P.frz.toFixed(1)+'s':''}`;
 $('sb').style.width=P.sta/P.max*100+'%';$('pb').style.width=Math.max(0,Math.min(100,P.s/TOT*100))+'%';
-$('sk').textContent=P.own?`${c.sn}: ${P.cd>0?'recarga '+Math.ceil(P.cd)+'s':'PRONTO (Espaço)'}`:'Stand não obtido (gire a flecha)';
-$('wk').textContent=`${P.w.n}: ${P.wcd>0?'recarga '+Math.ceil(P.wcd)+'s':'PRONTA (F)'}`}}}
+$('sk').textContent=P.own?`${c.sn}: ${P.cd>0?'recarga '+Math.ceil(P.cd)+'s':'PRONTO (Espaço)'}`:'Stand não obtido (gire a flecha)';}}}
 function cam(){if(!P)return;const f=P.s/R,[px,pz]=wp(P.s,P.x),tx=-Math.sin(f),tz=Math.cos(f);
 camera.fov=65+(state=='menu'?0:P.v*.2);camera.updateProjectionMatrix();
 if(state=='menu'){const a=T*.3;camera.position.set(px+Math.sin(a)*9,4,pz-Math.cos(a)*9);camera.lookAt(px,2.5,pz)}
@@ -167,23 +157,18 @@ else{camera.position.set(px-tx*13,6,pz-tz*13);camera.lookAt(px+tx*14,2,pz+tz*14)
 /* ---------- menu e roletas ---------- */
 function render(){
 $('menu').innerHTML=`<div class="pn"><h1>STEEL BALL RUN</h1><p>Velho Oeste, EUA · ${S.races} corridas · ${S.wins} vitórias</p>
-<div class="row"><button class="b" onclick="go()">🏇 Iniciar corrida</button><button class="b" onclick="rollC()" ${S.arrows?'':'disabled'}>🏹 Flecha de Stand (${S.arrows})</button><button class="b" onclick="rollW()" ${S.tk?'':'disabled'}>🔫 Roleta de armas (${S.tk})</button></div>
+<div class="row"><button class="b" onclick="go()">🏇 Iniciar corrida</button><button class="b" onclick="rollC()" ${S.arrows?'':'disabled'}>🏹 Flecha de Stand (${S.arrows})</button></div>
 <h2>Personagens (${CH.filter(x=>S.own[x.id]).length}/${CH.length} stands obtidos)</h2><div class="grid">`+
 CH.map(x=>`<div class="cd ${x.id==S.ch?'on':''}" style="border-color:${RCC[x.r]}" onclick="pick('${x.id}')"><b>${x.n}</b><small>${S.own[x.id]?'✔ '+x.sn+' x'+S.own[x.id]+' · '+x.t:'🔒 Stand não obtido · '+RNC[x.r]}</small></div>`).join('')+
-`</div><h2>Armas (toque para equipar)</h2><div class="grid">`+
-WP.filter(w=>S.ownW[w.id]).map(w=>`<div class="cd ${S.wp==w.id?'on':''}" style="border-color:${RCW[w.r]}" onclick="eqW('${w.id}')"><b>${w.n}</b><small>${RNW[w.r]} · paralisa ${TS[w.r]}s ${w.x}</small></div>`).join('')+
-`</div><p><small>← → ou A D: desviar · ↑ ou W: galopar · Espaço ou E: poder do Stand · F ou Q: atirar com a arma. Cada corrida dá +5 flechas e +3 fichas de arma.</small></p></div>`}
+`</div><p><small>← → ou A D: desviar · ↑ ou W: galopar · Espaço ou E: poder do Stand.</small></p></div>`}
 function pick(id){S.ch=id;save();reset();render()}
-function eqW(id){S.wp=id;save();reset();render()}
 function closeG(){$('gc').hidden=true;render()}
 function reveal(ico,txt,html){$('gc').hidden=false;$('gc').innerHTML=`<div class="pn"><div class="ar">${ico}</div><p>${txt}</p></div>`;setTimeout(()=>$('gc').innerHTML=html,1100)}
 function roll(w){let x=Math.random()*100,i=0;while(i<w.length-1&&x>=w[i]){x-=w[i];i++}return i}
 function rollC(){if(!S.arrows)return;S.arrows--;const r=roll([45,30,18,7]),c=pk(CH.filter(x=>x.r==r)),nw=!S.own[c.id];S.own[c.id]=(S.own[c.id]||0)+1;save();
 reveal('🏹','A flecha atravessa sua mão…',`<div class="pn" style="border-color:${RCC[r]}"><h2 style="color:${RCC[r]}">${RNC[r]}</h2><h1>${c.sn}</h1><p>Stand de ${c.n}</p><p>${c.t}</p><p>${nw?'NOVO STAND!':'Repetido: poder +10%'}</p><div class="row"><button class="b" onclick="S.ch='${c.id}';save();reset();closeG()">Jogar com ele</button><button class="b" onclick="closeG()">Fechar</button></div></div>`)}
-function rollW(){if(!S.tk)return;S.tk--;const r=roll([40,30,18,9,3]),w=pk(WP.filter(x=>x.r==r&&x.id!='sling')),nw=!S.ownW[w.id];S.ownW[w.id]=1;save();
-reveal('🔫','Girando o tambor…',`<div class="pn" style="border-color:${RCW[r]}"><h2 style="color:${RCW[r]}">${RNW[r]}</h2><h1>${w.n}</h1><p>Paralisa o alvo por ${TS[r]}s ${w.x}</p><p>${nw?'NOVA ARMA!':'Você já tinha esta arma'}</p><div class="row"><button class="b" onclick="S.wp='${w.id}';save();reset();closeG()">Equipar</button><button class="b" onclick="closeG()">Fechar</button></div></div>`)}
 /* ---------- entrada ---------- */
-const KM={ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r',ArrowUp:'g',w:'g',W:'g',' ':'s',e:'s',E:'s',f:'w',F:'w',q:'w',Q:'w'};
+const KM={ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r',ArrowUp:'g',w:'g',W:'g',' ':'s',e:'s',E:'s'};
 addEventListener('keydown',e=>{const k=KM[e.key];if(k){K[k]=1;e.preventDefault()}});
 addEventListener('keyup',e=>{const k=KM[e.key];if(k)K[k]=0});
 document.querySelectorAll('#tc button').forEach(b=>{const k=b.dataset.k;
