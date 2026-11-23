@@ -169,12 +169,14 @@ else{camera.position.set(px-tx*13,6,pz-tz*13);camera.lookAt(px+tx*14,2,pz+tz*14)
 /* ---------- menu e roletas ---------- */
 function render(){
 $('menu').innerHTML=`<div class="pn"><h1>STEEL BALL RUN</h1><p>Velho Oeste, EUA · ${S.races} corridas · ${S.wins} vitórias</p>
-<div class="row"><button class="b" onclick="go()">🏇 Iniciar corrida</button><button class="b" onclick="rollC()" ${S.arrows?'':'disabled'}>🏹 Flecha de Stand (${S.arrows})</button></div>
+<div class="row"><button class="b" onclick="go()">🏇 Iniciar corrida</button><button class="b" onclick="rollC()" ${S.arrows?'':'disabled'}>🏹 Flecha de Stand (${S.arrows})</button><button class="b" onclick="askReset()">🔄 Reiniciar tudo</button></div>
 <h2>Personagens (${CH.filter(x=>S.own[x.id]).length}/${CH.length} stands obtidos)</h2><div class="grid">`+
 CH.map(x=>`<div class="cd ${x.id==S.ch?'on':''}" style="border-color:${RCC[x.r]}" onclick="pick('${x.id}')"><b>${x.n}</b><small>${S.own[x.id]?'✔ '+x.sn+' x'+S.own[x.id]+' · '+x.t:'🔒 Stand não obtido · '+RNC[x.r]}</small></div>`).join('')+
 `</div><p><small>← → ou A D: desviar · ↑ ou W: galopar · Espaço ou E: poder do Stand.</small></p></div>`}
 function pick(id){S.ch=id;save();reset();render()}
 function closeG(){$('gc').hidden=true;render()}
+function askReset(){$('gc').hidden=false;$('gc').innerHTML=`<div class="pn"><h2>Reiniciar tudo?</h2><p>Você perde todos os Stands, corridas e vitórias, e fica com 1 flecha.</p><div class="row"><button class="b" onclick="resetAll()">Sim, reiniciar</button><button class="b" onclick="closeG()">Cancelar</button></div></div>`}
+function resetAll(){S.arrows=1;S.own={};S.races=0;S.wins=0;S.ch='johnny';save();reset();closeG();flash('Progresso reiniciado')}
 function reveal(ico,txt,html){$('gc').hidden=false;$('gc').innerHTML=`<div class="pn"><div class="ar">${ico}</div><p>${txt}</p></div>`;setTimeout(()=>$('gc').innerHTML=html,1100)}
 function roll(w){let x=Math.random()*100,i=0;while(i<w.length-1&&x>=w[i]){x-=w[i];i++}return i}
 function rollC(){if(!S.arrows)return;S.arrows--;const r=roll([45,30,18,7]),c=pk(CH.filter(x=>x.r==r)),nw=!S.own[c.id];S.own[c.id]=(S.own[c.id]||0)+1;save();
