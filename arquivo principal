@@ -15,6 +15,9 @@ h1{margin:0;font-size:28px;letter-spacing:2px;color:var(--ac)}h2{margin:12px 0 6
 .b{font:inherit;font-weight:bold;padding:10px 16px;border-radius:8px;border:2px solid var(--bd);background:var(--ac);color:#fff;cursor:pointer}.b:disabled{opacity:.4}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
 .cd{border:2px solid var(--bd);border-radius:8px;padding:8px;cursor:pointer;text-align:left;font-size:13px}.cd.on{background:var(--ac);color:#fff}.cd small{display:block;opacity:.85;margin-top:3px}
+.fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 16px;text-align:left;font-size:13px;margin-top:8px}
+.fg label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+input[type=number]{width:72px;font:inherit}
 .hd{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;width:230px;background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:13px}
 .bar{height:9px;background:rgba(0,0,0,.25);border-radius:5px;margin:4px 0 8px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--ac)}
 #msg{position:fixed;top:30%;left:0;right:0;text-align:center;font-size:72px;font-weight:bold;color:#fff;text-shadow:0 3px 8px #000;pointer-events:none}
@@ -25,7 +28,7 @@ h1{margin:0;font-size:28px;letter-spacing:2px;color:var(--ac)}h2{margin:12px 0 6
 [hidden]{display:none!important}
 </style></head><body>
 <canvas id="cv"></canvas>
-<div id="menu" class="ov"></div><div id="gc" class="ov" hidden></div>
+<div id="menu" class="ov"></div><div id="gc" class="ov" hidden></div><div id="dev" class="ov" hidden></div>
 <div id="hud" class="hd" hidden><div id="pos"></div><div class="bar"><i id="sb"></i></div><div id="sk"></div><div class="bar"><i id="pb"></i></div></div>
 <div id="msg"></div><div id="fl"></div>
 <div id="tc" hidden><span><button data-k="l">◀</button> <button data-k="r">▶</button></span><span><button data-k="g">GALOPAR</button> <button data-k="s">STAND</button></span></div>
@@ -55,11 +58,16 @@ const CH=[
 ['diavolo','Diavolo',0xc03a7a,1.05,110,1,3,'King Crimson','Apaga o tempo: +30m, imune, rivais paralisam 1.5s',20]
 ].map(a=>({id:a[0],n:a[1],c:a[2],spd:a[3],sta:a[4],hnd:a[5],r:a[6],sn:a[7],t:a[8],cd:a[9]}));
 const RNC=['Comum','Raro','Épico','Lendário'],RCC=['#8a8a8a','#2f7fd0','#9a4ad0','#e0a020'];
+// configurações de teste (modo secreto): bots = quantidade, bs = velocidade dos bots, botSta = stamina dos bots,
+// botRg = regeneração de stamina dos bots, pool = personagens permitidos para os bots (vazio = todos)
+const DEF={bots:11,bs:.88,botSta:.8,botRg:9,botPw:1,laps:2,obs:90,plSpd:1,plCd:1,plInf:0,plGhost:0};
 let S={arrows:1,ch:'johnny',own:{},races:0,wins:0};
 try{Object.assign(S,JSON.parse(localStorage.getItem('sbr2')||'{}'))}catch(e){}
+S.cfg=Object.assign({},DEF,S.cfg);S.cfg.pool=(S.cfg.pool||[]).slice();
+const C=S.cfg;
 const save=()=>{try{localStorage.setItem('sbr2',JSON.stringify(S))}catch(e){}};
 /* ---------- 3D ---------- */
-const W=44,R=200,LAP=2*Math.PI*R,LAPS=2,TOT=LAP*LAPS,N=12;
+const W=44,R=200,LAP=2*Math.PI*R;let LAPS=2,TOT=LAP*LAPS;
 const RN=new THREE.WebGLRenderer({canvas:$('cv'),antialias:true});RN.setPixelRatio(Math.min(devicePixelRatio,2));
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(65,1,.5,900);
 scene.background=new THREE.Color(0xf0c27a);scene.fog=new THREE.Fog(0xf0c27a,60,420);
@@ -81,19 +89,21 @@ let world,horses=[],P,obs=[],order=[],state='menu',cnt=0,T=0,ft;
 const K={l:0,r:0,g:0,s:0,w:0};
 function flash(t){$('fl').textContent=t;clearTimeout(ft);ft=setTimeout(()=>$('fl').textContent='',2400)}
 function reset(){if(world)scene.remove(world);world=new THREE.Group();scene.add(world);obs=[];order=[];horses=[];
+LAPS=Math.max(1,C.laps|0);TOT=LAP*LAPS;
 const gr=new THREE.Mesh(new THREE.CircleGeometry(700,48),MT(0xd9a95f));gr.rotation.x=-Math.PI/2;world.add(gr);
 const tr=new THREE.Mesh(new THREE.RingGeometry(R-W/2,R+W/2,128),MT(0xb98348));tr.rotation.x=-Math.PI/2;tr.position.y=.05;world.add(tr);
-for(let i=0;i<90;i++){const o=i%3?mkCactus(rnd(.9,1.4)):new THREE.Mesh(new THREE.DodecahedronGeometry(1.3),MT(0x7a6a5a)),s=rnd(80,LAP-30),x=rnd(-W/2+3,W/2-3),[px,pz]=wp(s,x);
+for(let i=0;i<C.obs;i++){const o=i%3?mkCactus(rnd(.9,1.4)):new THREE.Mesh(new THREE.DodecahedronGeometry(1.3),MT(0x7a6a5a)),s=rnd(80,LAP-30),x=rnd(-W/2+3,W/2-3),[px,pz]=wp(s,x);
 o.position.set(px,o.geometry?1:0,pz);o.rotation.y=rnd(0,6);world.add(o);obs.push({s,x,g:o,dead:0})}
 for(let i=0;i<170;i++){const a=rnd(0,6.283),r=i%2?rnd(0,R-W/2-8):rnd(R+W/2+8,R+130),c=mkCactus(rnd(1,2));c.position.set(r*Math.cos(a),0,r*Math.sin(a));world.add(c)}
 for(let i=0;i<18;i++){const h=rnd(40,90),a=rnd(0,6.283),r=rnd(400,540),m=new THREE.Mesh(new THREE.ConeGeometry(rnd(30,60),h,5),MT(0x9a6b45));m.position.set(r*Math.cos(a),h/2,r*Math.sin(a));world.add(m)}
 const cv=document.createElement('canvas');cv.width=64;cv.height=16;const cx=cv.getContext('2d');for(let i=0;i<16;i++)for(let j=0;j<4;j++){cx.fillStyle=(i+j)%2?'#000':'#fff';cx.fillRect(i*4,j*4,4,4)}
 const fl=new THREE.Mesh(new THREE.PlaneGeometry(W,4),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}));fl.rotation.x=-Math.PI/2;fl.position.set(R,.1,0);world.add(fl);
 box(world,1,12,1,0x3b2412,R-W/2-1,6,0);box(world,1,12,1,0x3b2412,R+W/2+1,6,0);box(world,W+3,1.5,1,0xb5451b,R,12,0);
-const me=CH.find(c=>c.id==S.ch),others=CH.filter(c=>c.id!=S.ch).sort(()=>Math.random()-.5).slice(0,N-1),sl=[3,0,1,2,4,5,6,7,8,9,10,11];
-[me,...others].forEach((c,i)=>{const g=mkHorse(pk([0x6b4a2a,0x2a2a2a,0xd8d0c0,0x8a5a2a]),c.c),p=!i,n=p?(S.own[c.id]||0):1;
-const h={g,ch:c,p,own:n>0,x:-17.5+(sl[i]%6)*7,s:-Math.floor(sl[i]/6)*9,v:0,max:c.sta,sta:c.sta,bm:1,boost:0,slow:0,imm:0,inv:0,frz:0,conf:0,inf:0,cd:0,fin:false,tired:0,
-pw:n?(.03+.02*c.r)*(1+.1*(n-1)):0,hnd:c.hnd,ai:rnd(.95,1.04),aiG:1,aiT:0,ph:rnd(0,6)};
+const me=CH.find(c=>c.id==S.ch),pool=CH.filter(c=>C.pool.length?C.pool.includes(c.id):1),others=[],sl=[3,0,1,2,4,5,6,7,8,9,10,11];
+let bag=[];for(let i=0,nb=Math.max(0,C.bots|0);i<nb;i++){if(!bag.length)bag=pool.filter(c=>c.id!=me.id||pool.length<2).sort(()=>Math.random()-.5);others.push(bag.pop())}
+[me,...others].forEach((c,i)=>{const g=mkHorse(pk([0x6b4a2a,0x2a2a2a,0xd8d0c0,0x8a5a2a]),c.c),p=!i,n=p?(S.own[c.id]||0):1,k=sl[i]??i;
+const h={g,ch:c,p,own:n>0,x:-17.5+(k%6)*7,s:-Math.floor(k/6)*9,v:0,max:c.sta*(p?1:C.botSta),sta:c.sta*(p?1:C.botSta),bm:1,boost:0,slow:0,imm:0,inv:0,frz:0,conf:0,inf:0,cd:0,fin:false,tired:0,
+pw:n?(.03+.02*c.r)*(1+.1*(n-1)):0,hnd:c.hnd,ai:rnd(.95,1.04)*C.bs,aiG:1,aiT:0,ph:rnd(0,6)};
 world.add(g);horses.push(h);anim(h,0)});P=horses[0]}
 /* ---------- poderes ---------- */
 const fr=h=>horses.filter(x=>x!==h&&!x.fin),ah=h=>fr(h).filter(x=>x.s>h.s).sort((a,b)=>a.s-b.s),lead=()=>[...horses].sort((a,b)=>b.s-a.s)[0];
@@ -117,21 +127,23 @@ bruno:h=>{h.s+=40;h.inv=2},
 jolyne:h=>{const n=ah(h)[0];if(n){h.s=Math.max(h.s,n.s-3);h.x=n.x}},
 pucci:h=>{B(h,5,2.4);fr(h).forEach(x=>Sl(x,3))},
 diavolo:h=>{h.s+=30;h.inv=2;fr(h).forEach(x=>Z(x,1.5))}};
-function skill(h){if(h.cd>0||h.frz>0||h.fin||!h.own)return;h.cd=h.ch.cd;SK[h.ch.id](h);if(h.p)flash(h.ch.sn+'!')}
+function skill(h){if(h.cd>0||h.frz>0||h.fin||!h.own)return;h.cd=h.ch.cd*(h.p?C.plCd:1);SK[h.ch.id](h);if(h.p)flash(h.ch.sn+'!')}
 /* ---------- corrida ---------- */
 function step(h,dt){let st=0,gal=0;
 ['cd','boost','slow','imm','inv','frz','conf','inf'].forEach(k=>h[k]=Math.max(0,h[k]-dt));
 if(h.fin||h.frz>0){h.v+=((h.fin?6:0)-h.v)*Math.min(1,6*dt);h.s+=h.v*dt;return anim(h,dt)}
 if(h.p){st=K.r-K.l;gal=K.g;if(K.s)skill(h)}
-else{h.aiT-=dt;if(h.aiT<=0){h.aiT=rnd(1.5,3);h.aiG=Math.random()<.65}
-gal=h.aiG&&h.sta>20;let tx=h.x;
+else{h.aiT-=dt;if(h.aiT<=0){h.aiT=rnd(1.5,3);h.aiG=Math.random()<.85}
+gal=h.aiG;let tx=h.x;
 for(const o of obs){const d=((o.s-h.s)%LAP+LAP)%LAP;if(!o.dead&&d<25&&Math.abs(o.x-h.x)<3.2){tx=o.x+(o.x>h.x?-4:4);break}}
-st=Math.max(-1,Math.min(1,(tx-h.x)*.6));if(Math.random()<dt*.12)skill(h)}
+st=Math.max(-1,Math.min(1,(tx-h.x)*.6));if(C.botPw&&Math.random()<dt*.12)skill(h)}
 if(h.conf>0)st=-st;
-if(gal&&h.sta>0&&!h.tired){if(!h.inf)h.sta-=25*dt;if(h.sta<=0){h.sta=0;h.tired=1}}else{gal=0;h.sta=Math.min(h.max,h.sta+14*dt);if(h.sta>20)h.tired=0}
+// stamina: bots galopam até zerar e depois precisam descansar até recuperar (como o jogador)
+const inf=h.inf||(h.p&&C.plInf);
+if(gal&&h.sta>0&&!h.tired){if(!inf)h.sta-=25*dt;if(h.sta<=0){h.sta=0;h.tired=1}}else{gal=0;h.sta=Math.min(h.max,h.sta+(h.p?14:C.botRg)*dt);if(h.sta>Math.min(h.p?20:45,h.max*.5))h.tired=0}
 h.x=Math.max(-W/2+1,Math.min(W/2-1,h.x+st*13*h.hnd*dt));
-if(h.imm<=0&&h.inv<=0)for(const o of obs){const d=((h.s-o.s)%LAP+LAP)%LAP;if(!o.dead&&(d<2.3||d>LAP-2.3)&&Math.abs(o.x-h.x)<1.9){h.slow=1;h.imm=1.6;break}}
-const tv=26*h.ch.spd*(h.p?1:h.ai)*(1+h.pw)*(gal?1.35:1)*(h.boost>0?h.bm:1)*(h.slow>0?.4:1);
+if(h.imm<=0&&h.inv<=0&&!(h.p&&C.plGhost))for(const o of obs){const d=((h.s-o.s)%LAP+LAP)%LAP;if(!o.dead&&(d<2.3||d>LAP-2.3)&&Math.abs(o.x-h.x)<1.9){h.slow=1;h.imm=1.6;break}}
+const tv=26*h.ch.spd*(h.p?C.plSpd:h.ai)*(1+h.pw)*(gal?1.35:1)*(h.boost>0?h.bm:1)*(h.slow>0?.4:1);
 h.v+=(tv-h.v)*Math.min(1,4*dt);h.s+=h.v*dt;anim(h,dt);
 if(h.s>=TOT){h.fin=true;order.push(h);if(h.p)finish()}}
 function anim(h,dt){h.ph+=dt*h.v*.45;const[x,z]=wp(h.s,h.x),g=h.g,k=Math.min(1,h.v/15);
@@ -147,7 +159,7 @@ function update(dt){
 if(state=='count'){cnt-=dt;$('msg').textContent=cnt>0?Math.ceil(cnt):'GO!';if(cnt<=0){state='race';setTimeout(()=>$('msg').textContent='',700)}}
 if(state=='race'||state=='done'){horses.forEach(h=>step(h,dt));if(state=='race'){
 const rk=1+horses.filter(h=>h.s>P.s).length,c=P.ch;
-$('pos').innerHTML=`<b>Posição ${rk}/${horses.length}</b> · Volta ${Math.min(LAPS,Math.floor(P.s/LAP)+1)}/${LAPS}<br>${Math.round(P.v*3.6)} km/h${P.frz>0?' · PARALISADO '+P.frz.toFixed(1)+'s':''}`;
+$('pos').innerHTML=`<b>Posição ${rk}/${horses.length}</b> · Volta ${Math.max(1,Math.min(LAPS,Math.floor(P.s/LAP)+1))}/${LAPS}<br>${Math.round(P.v*3.6)} km/h${P.frz>0?' · PARALISADO '+P.frz.toFixed(1)+'s':''}`;
 $('sb').style.width=P.sta/P.max*100+'%';$('pb').style.width=Math.max(0,Math.min(100,P.s/TOT*100))+'%';
 $('sk').textContent=P.own?`${c.sn}: ${P.cd>0?'recarga '+Math.ceil(P.cd)+'s':'PRONTO (Espaço)'}`:'Stand não obtido (gire a flecha)';}}}
 function cam(){if(!P)return;const f=P.s/R,[px,pz]=wp(P.s,P.x),tx=-Math.sin(f),tz=Math.cos(f);
@@ -167,9 +179,25 @@ function reveal(ico,txt,html){$('gc').hidden=false;$('gc').innerHTML=`<div class
 function roll(w){let x=Math.random()*100,i=0;while(i<w.length-1&&x>=w[i]){x-=w[i];i++}return i}
 function rollC(){if(!S.arrows)return;S.arrows--;const r=roll([45,30,18,7]),c=pk(CH.filter(x=>x.r==r)),nw=!S.own[c.id];S.own[c.id]=(S.own[c.id]||0)+1;save();
 reveal('🏹','A flecha atravessa sua mão…',`<div class="pn" style="border-color:${RCC[r]}"><h2 style="color:${RCC[r]}">${RNC[r]}</h2><h1>${c.sn}</h1><p>Stand de ${c.n}</p><p>${c.t}</p><p>${nw?'NOVO STAND!':'Repetido: poder +10%'}</p><div class="row"><button class="b" onclick="S.ch='${c.id}';save();reset();closeG()">Jogar com ele</button><button class="b" onclick="closeG()">Fechar</button></div></div>`)}
+/* ---------- modo teste (código: ↑ ↑ ↑ ↓ ↓ no menu) ---------- */
+const FD=[['bots','Nº de bots (0–30)',0,30,1],['bs','Velocidade dos bots (×)',0,2,.01],['botSta','Stamina dos bots (×)',.1,5,.1],['botRg','Regeneração de stamina dos bots (/s)',0,40,1],['laps','Voltas',1,10,1],['obs','Obstáculos',0,300,10],['plSpd','Velocidade do jogador (×)',.5,3,.05],['plCd','Recarga do seu poder (× · 0 = sem recarga)',0,2,.1]];
+const CK=[['botPw','Bots usam poderes'],['plInf','Stamina infinita do jogador'],['plGhost','Jogador atravessa obstáculos']];
+function setC(k,v){v=+v;if(v!==v)return;const f=FD.find(a=>a[0]==k);if(f)v=Math.max(f[2],Math.min(f[3],v));C[k]=v;save()}
+function togP(id,el){const i=C.pool.indexOf(id);i<0?C.pool.push(id):C.pool.splice(i,1);el.classList.toggle('on');save()}
+function devUI(){$('dev').innerHTML=`<div class="pn"><h1>MODO TESTE</h1><p><small>Todos os Stands liberados. As mudanças valem para a próxima corrida.</small></p><div class="fg">`+
+FD.map(f=>`<label>${f[1]}<input type="number" min="${f[2]}" max="${f[3]}" step="${f[4]}" value="${C[f[0]]}" onchange="setC('${f[0]}',this.value)"></label>`).join('')+
+CK.map(f=>`<label>${f[1]}<input type="checkbox" ${C[f[0]]?'checked':''} onchange="setC('${f[0]}',this.checked?1:0)"></label>`).join('')+
+`</div><h2>Personagens dos bots (nenhum marcado = todos)</h2><div class="grid">`+
+CH.map(x=>`<div class="cd ${C.pool.includes(x.id)?'on':''}" onclick="togP('${x.id}',this)"><b>${x.n}</b><small>${x.sn}</small></div>`).join('')+
+`</div><div class="row"><button class="b" onclick="Object.assign(C,DEF,{pool:[]});save();devUI()">Restaurar padrão</button><button class="b" onclick="closeDev()">Aplicar e fechar</button></div></div>`}
+function closeDev(){$('dev').hidden=true;save();reset();render()}
+function cheat(){CH.forEach(c=>S.own[c.id]=S.own[c.id]||1);save();reset();render();devUI();$('dev').hidden=false;flash('Todos os Stands liberados!')}
 /* ---------- entrada ---------- */
 const KM={ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r',ArrowUp:'g',w:'g',W:'g',' ':'s',e:'s',E:'s'};
-addEventListener('keydown',e=>{const k=KM[e.key];if(k){K[k]=1;e.preventDefault()}});
+const SEQ='ArrowUp,ArrowUp,ArrowUp,ArrowDown,ArrowDown';let kb=[];
+addEventListener('keydown',e=>{if(e.target.tagName=='INPUT')return;
+if(state=='menu'&&!e.repeat){kb.push(e.key);kb=kb.slice(-5);if(kb.join()==SEQ){kb=[];cheat()}}
+const k=KM[e.key];if(k){K[k]=1;e.preventDefault()}});
 addEventListener('keyup',e=>{const k=KM[e.key];if(k)K[k]=0});
 document.querySelectorAll('#tc button').forEach(b=>{const k=b.dataset.k;
 b.addEventListener('pointerdown',e=>{e.preventDefault();K[k]=1});['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,()=>K[k]=0))});
